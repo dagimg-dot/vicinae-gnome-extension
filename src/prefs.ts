@@ -38,17 +38,13 @@ const BlockedAppRow = GObject.registerClass(
         },
         Signals: {
             "delete-requested": {},
-            "window-changed": {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING],
-            },
-            "empty-state-changed": {
-                param_types: [GObject.TYPE_BOOLEAN],
-            },
             "save-requested": {},
+            "input-changed": {},
         },
     },
     class BlockedAppRow extends Adw.ExpanderRow {
         private windowClass: string = "";
+        private inputValue: string = ""; // Separate state for input field
         private windowEntry: Adw.EntryRow;
         private checkButton: Gtk.Button;
         private deleteButton: Gtk.Button;
@@ -93,24 +89,19 @@ const BlockedAppRow = GObject.registerClass(
 
             // Connect signals
             this.checkButton.connect("clicked", () => {
-                this.emit("save-requested");
+                this.saveChanges();
             });
 
             this.deleteButton.connect("clicked", () => {
                 this.emit("delete-requested");
             });
 
+            // Only track input changes locally, don't emit signals
             this.windowEntry.connect("changed", () => {
-                const newValue = this.windowEntry.get_text().trim();
-                const oldValue = this.windowClass;
-
-                // Update internal state
-                this.windowClass = newValue;
-                this.updateDisplay();
-
-                // Emit signals
-                this.emit("window-changed", oldValue, newValue);
-                this.emit("empty-state-changed", newValue === "");
+                this.inputValue = this.windowEntry.get_text().trim();
+                this.updateCheckButtonState();
+                // Emit a signal to notify parent about empty state change
+                this.emit("input-changed");
             });
 
             // Listen for expand/collapse changes
@@ -121,20 +112,54 @@ const BlockedAppRow = GObject.registerClass(
 
         setWindowClass(windowClass: string) {
             this.windowClass = windowClass;
+            this.inputValue = windowClass;
             this.windowEntry.set_text(windowClass);
             this.updateDisplay();
+            this.updateCheckButtonState();
         }
 
         getWindowClass(): string {
             return this.windowClass;
         }
 
+        getInputValue(): string {
+            return this.inputValue;
+        }
+
         isEmpty(): boolean {
-            return this.windowClass.trim() === "";
+            return this.inputValue.trim() === "";
         }
 
         closeExpanded() {
             this.set_expanded(false);
+        }
+
+        private saveChanges() {
+            // Update the main state only when saving
+            const oldValue = this.windowClass;
+            const newValue = this.inputValue.trim();
+
+            if (newValue !== oldValue) {
+                this.windowClass = newValue;
+                this.updateDisplay();
+                // Emit save signal so parent can update settings
+                this.emit("save-requested");
+            }
+
+            // Close the expanded row
+            this.closeExpanded();
+        }
+
+        private updateButtonVisibility() {
+            this.checkButton.visible = this.get_expanded();
+            if (this.get_expanded()) {
+                this.updateCheckButtonState();
+            }
+        }
+
+        updateCheckButtonState() {
+            // Disable check button if input is empty
+            this.checkButton.set_sensitive(this.inputValue.trim().length > 0);
         }
 
         private updateDisplay() {
@@ -147,10 +172,6 @@ const BlockedAppRow = GObject.registerClass(
                 this.set_title("Expand this row to enter window class");
                 this.set_subtitle("");
             }
-        }
-
-        private updateButtonVisibility() {
-            this.checkButton.visible = this.get_expanded();
         }
     },
 );
@@ -222,23 +243,55 @@ const GeneralPage = GObject.registerClass(
         }
 
         private loadBlockedApplications() {
-            const children = this as unknown as GeneralPageChildren;
-            const blockedApps = this.settings.get_strv("blocked-applications");
+            try {
+                const blockedApps = this.settings.get_strv(
+                    "blocked-applications",
+                );
+                logger(
+                    `Loading blocked applications: [${blockedApps.join(", ")}]`,
+                );
 
-            // Clear existing rows
-            this.blockedAppRows.forEach((row) => {
-                children._blockedAppsGroup.remove(row);
+                // Clean up any duplicates that might exist
+                const uniqueBlockedApps = this.removeDuplicates(blockedApps);
+                if (uniqueBlockedApps.length !== blockedApps.length) {
+                    logger(
+                        `Cleaned up duplicates: [${blockedApps.join(", ")}] -> [${uniqueBlockedApps.join(", ")}]`,
+                    );
+                    this.settings.set_strv(
+                        "blocked-applications",
+                        uniqueBlockedApps,
+                    );
+                }
+
+                // Clear existing rows
+                const children = this as unknown as GeneralPageChildren;
+                children._blockedAppsGroup.remove_all();
+                this.blockedAppRows.clear();
+                this.emptyRows.clear();
+
+                // Add rows for each unique blocked app
+                uniqueBlockedApps.forEach((windowClass) => {
+                    this.addBlockedAppRow(windowClass);
+                });
+
+                logger(
+                    `Loaded ${uniqueBlockedApps.length} blocked applications`,
+                );
+            } catch (error) {
+                logger("Error loading blocked applications", error);
+            }
+        }
+
+        private removeDuplicates(apps: string[]): string[] {
+            const seen = new Set<string>();
+            return apps.filter((app) => {
+                const lowerApp = app.toLowerCase();
+                if (seen.has(lowerApp)) {
+                    return false;
+                }
+                seen.add(lowerApp);
+                return true;
             });
-            this.blockedAppRows.clear();
-            this.emptyRows.clear();
-
-            // Add rows for each blocked application
-            blockedApps.forEach((app) => {
-                this.addBlockedAppRow(app);
-            });
-
-            // Update button state
-            this.updateAddButtonState();
         }
 
         private addEmptyBlockedAppRow() {
@@ -256,19 +309,12 @@ const GeneralPage = GObject.registerClass(
                 this.removeBlockedAppRow(row);
             });
 
-            row.connect(
-                "window-changed",
-                (_, oldClass: string, newClass: string) => {
-                    this.updateBlockedApp(row, oldClass, newClass);
-                },
-            );
-
-            row.connect("empty-state-changed", (_, isEmpty: boolean) => {
-                this.handleEmptyStateChange(row, isEmpty);
+            row.connect("save-requested", () => {
+                this.handleSaveRequest(row);
             });
 
-            row.connect("save-requested", () => {
-                this.saveAndCloseRow(row);
+            row.connect("input-changed", () => {
+                this.handleInputChange(row);
             });
 
             children._blockedAppsGroup.add(row);
@@ -277,10 +323,135 @@ const GeneralPage = GObject.registerClass(
                 this.blockedAppRows.set(windowClass, row);
             } else {
                 this.emptyRows.add(row);
+                // Ensure the check button is disabled for empty rows
+                row.updateCheckButtonState();
             }
 
             // Update button state
             this.updateAddButtonState();
+        }
+
+        private handleInputChange(row: BlockedAppRow) {
+            const isEmpty = row.isEmpty();
+            const wasEmpty = this.emptyRows.has(row);
+
+            if (isEmpty && !wasEmpty) {
+                // Row became empty
+                this.emptyRows.add(row);
+            } else if (!isEmpty && wasEmpty) {
+                // Row is no longer empty
+                this.emptyRows.delete(row);
+            }
+
+            // Update button state
+            this.updateAddButtonState();
+        }
+
+        private updateAddButtonState() {
+            const children = this as unknown as GeneralPageChildren;
+            // Enable button if there are no empty rows
+            children._addWindowButton.set_sensitive(this.emptyRows.size === 0);
+        }
+
+        private handleSaveRequest(row: BlockedAppRow) {
+            const oldClass = row.getWindowClass();
+            const newClass = row.getInputValue().trim();
+
+            if (newClass) {
+                // Check if this window class already exists (excluding the current row)
+                const existingRows = Array.from(this.blockedAppRows.values());
+                const isDuplicate = existingRows.some(
+                    (existingRow) =>
+                        existingRow !== row &&
+                        existingRow.getWindowClass().toLowerCase() ===
+                            newClass.toLowerCase(),
+                );
+
+                if (isDuplicate) {
+                    const root = this.get_root() as Adw.PreferencesWindow;
+                    if (root && "add_toast" in root) {
+                        const toast = new Adw.Toast({
+                            title: `Can't add ${newClass} to the list, because it's already there`,
+                        });
+                        (
+                            root as Adw.PreferencesWindow & {
+                                add_toast: (toast: Adw.Toast) => void;
+                            }
+                        ).add_toast(toast);
+                    }
+                    // Reset to old value and don't save
+                    row.setWindowClass(oldClass);
+                    return;
+                }
+
+                this.updateBlockedAppInSettings(row, oldClass, newClass);
+            } else {
+                this.removeBlockedAppFromSettings(row, oldClass);
+            }
+            this.updateAddButtonState();
+        }
+
+        private updateBlockedAppInSettings(
+            row: BlockedAppRow,
+            oldClass: string,
+            newClass: string,
+        ) {
+            try {
+                // Get current blocked apps from settings
+                const currentBlockedApps = this.settings.get_strv(
+                    "blocked-applications",
+                );
+
+                // Remove old class if it exists
+                const filteredApps = currentBlockedApps.filter(
+                    (app) => app !== oldClass,
+                );
+
+                // Add new class
+                filteredApps.push(newClass);
+
+                // Update settings
+                this.settings.set_strv("blocked-applications", filteredApps);
+
+                // Update our internal tracking
+                if (oldClass) {
+                    this.blockedAppRows.delete(oldClass);
+                }
+                this.blockedAppRows.set(newClass, row);
+
+                logger(`Updated blocked app: ${oldClass} -> ${newClass}`);
+                logger(`Current blocked apps: [${filteredApps.join(", ")}]`);
+            } catch (error) {
+                logger("Error updating blocked app in settings", error);
+            }
+        }
+
+        private removeBlockedAppFromSettings(
+            _row: BlockedAppRow,
+            oldClass: string,
+        ) {
+            try {
+                // Get current blocked apps from settings
+                const currentBlockedApps = this.settings.get_strv(
+                    "blocked-applications",
+                );
+
+                // Remove the old class
+                const filteredApps = currentBlockedApps.filter(
+                    (app) => app !== oldClass,
+                );
+
+                // Update settings
+                this.settings.set_strv("blocked-applications", filteredApps);
+
+                // Update our internal tracking
+                this.blockedAppRows.delete(oldClass);
+
+                logger(`Removed blocked app: ${oldClass}`);
+                logger(`Current blocked apps: [${filteredApps.join(", ")}]`);
+            } catch (error) {
+                logger("Error removing blocked app from settings", error);
+            }
         }
 
         private removeBlockedAppRow(row: BlockedAppRow) {
@@ -309,112 +480,6 @@ const GeneralPage = GObject.registerClass(
 
             // Update button state
             this.updateAddButtonState();
-        }
-
-        private handleEmptyStateChange(row: BlockedAppRow, isEmpty: boolean) {
-            if (isEmpty) {
-                this.emptyRows.add(row);
-            } else {
-                this.emptyRows.delete(row);
-            }
-            this.updateAddButtonState();
-        }
-
-        private updateAddButtonState() {
-            const children = this as unknown as GeneralPageChildren;
-            // Disable button if there are any empty rows
-            children._addWindowButton.set_sensitive(this.emptyRows.size === 0);
-        }
-
-        private updateBlockedApp(
-            row: BlockedAppRow,
-            oldClass: string,
-            newClass: string,
-        ) {
-            // Trim whitespace
-            newClass = newClass.trim();
-            oldClass = oldClass.trim();
-
-            // Check if new class is already in use
-            if (
-                newClass &&
-                this.blockedAppRows.has(newClass) &&
-                newClass !== oldClass
-            ) {
-                // Show toast notification
-                const root = this.get_root() as Adw.PreferencesWindow;
-                if (root && "add_toast" in root) {
-                    const toast = new Adw.Toast({
-                        title: `Can't add ${newClass} to the list, because it's already there`,
-                    });
-                    (root as Adw.PreferencesWindow & { add_toast: (toast: Adw.Toast) => void }).add_toast(toast);
-                }
-
-                // Revert the change
-                row.setWindowClass(oldClass);
-                return;
-            }
-
-            const currentApps = this.settings.get_strv("blocked-applications");
-
-            if (oldClass === "") {
-                // Adding new entry
-                if (newClass) {
-                    const updatedApps = [...currentApps, newClass];
-                    this.settings.set_strv("blocked-applications", updatedApps);
-                    this.blockedAppRows.set(newClass, row);
-                    this.emptyRows.delete(row);
-                }
-            } else {
-                // Updating existing entry
-                const index = currentApps.indexOf(oldClass);
-                if (index !== -1) {
-                    if (newClass) {
-                        // Replace old with new
-                        currentApps[index] = newClass;
-                        this.settings.set_strv(
-                            "blocked-applications",
-                            currentApps,
-                        );
-                        this.blockedAppRows.delete(oldClass);
-                        this.blockedAppRows.set(newClass, row);
-                    } else {
-                        // Remove if empty
-                        const updatedApps = currentApps.filter(
-                            (app) => app !== oldClass,
-                        );
-                        this.settings.set_strv(
-                            "blocked-applications",
-                            updatedApps,
-                        );
-                        this.blockedAppRows.delete(oldClass);
-                        this.emptyRows.add(row);
-                    }
-                }
-            }
-
-            // Update button state after any change
-            this.updateAddButtonState();
-        }
-
-        private saveAndCloseRow(row: BlockedAppRow) {
-            const windowClass = row.getWindowClass();
-            if (windowClass) {
-                const currentApps = this.settings.get_strv(
-                    "blocked-applications",
-                );
-                if (!currentApps.includes(windowClass)) {
-                    const updatedApps = [...currentApps, windowClass];
-                    this.settings.set_strv("blocked-applications", updatedApps);
-                    this.blockedAppRows.set(windowClass, row);
-                    this.emptyRows.delete(row);
-                }
-            } else {
-                // This case should ideally not happen if save-requested is only connected to non-empty rows
-                // but as a safeguard, we can remove the row if it's empty.
-                this.removeBlockedAppRow(row);
-            }
-            row.closeExpanded();
         }
     },
 );

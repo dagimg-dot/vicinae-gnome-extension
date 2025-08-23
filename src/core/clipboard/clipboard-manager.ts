@@ -1,5 +1,5 @@
-import type GLib from "gi://GLib";
 import type Gio from "gi://Gio";
+import type GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
@@ -29,12 +29,38 @@ export class VicinaeClipboardManager {
     setSettings(settings: Gio.Settings): void {
         this.settings = settings;
         logger("Settings set in clipboard manager from external source");
+
+        // Debug: Log current blocked applications
+        try {
+            const blockedApps = this.settings.get_strv("blocked-applications");
+            logger(
+                `Debug: Current blocked applications: [${blockedApps.join(", ")}]`,
+            );
+        } catch (error) {
+            logger(
+                "Debug: Error reading blocked applications from settings",
+                error,
+            );
+        }
     }
 
     // Method to update settings when they change
     updateSettings(settings: Gio.Settings): void {
         this.settings = settings;
         logger("Settings updated in clipboard manager");
+
+        // Debug: Log updated blocked applications
+        try {
+            const blockedApps = this.settings.get_strv("blocked-applications");
+            logger(
+                `Debug: Updated blocked applications: [${blockedApps.join(", ")}]`,
+            );
+        } catch (error) {
+            logger(
+                "Debug: Error reading updated blocked applications from settings",
+                error,
+            );
+        }
     }
 
     private isApplicationBlocked(sourceApp: string): boolean {
@@ -47,6 +73,10 @@ export class VicinaeClipboardManager {
 
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
+            logger(
+                `Debug: Checking if ${sourceApp} is blocked. Blocked apps list: [${blockedApps.join(", ")}]`,
+            );
+
             const isBlocked = blockedApps.some(
                 (blockedApp: string) =>
                     sourceApp
@@ -58,6 +88,10 @@ export class VicinaeClipboardManager {
             if (isBlocked) {
                 logger(
                     `Application ${sourceApp} is blocked from clipboard access`,
+                );
+            } else {
+                logger(
+                    `Application ${sourceApp} is NOT blocked (not in blocked apps list)`,
                 );
             }
 
@@ -365,10 +399,19 @@ export class VicinaeClipboardManager {
             isBlocked: isBlocked,
             shouldBlock: shouldBlock,
             note: shouldBlock
-                ? "⚠️ This event will be blocked by DBus service"
+                ? "⚠️ This event will be blocked by clipboard manager"
                 : "✅ Event will be processed normally",
         });
 
+        // Block the event if it should be blocked - don't notify listeners
+        if (shouldBlock) {
+            logger(
+                `🚫 Clipboard access blocked for application: ${metadata.sourceApp} (${metadata.contentType}) - Event not forwarded to listeners`,
+            );
+            return; // Don't emit to listeners for blocked applications
+        }
+
+        // Only emit to listeners if not blocked
         this.eventListeners.forEach((listener) => {
             try {
                 listener(event);

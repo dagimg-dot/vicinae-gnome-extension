@@ -11,143 +11,74 @@ export class ClipboardService {
     private dbusObject: Gio.DBusExportedObject | null = null;
     private clipboardListener: ((event: ClipboardEvent) => void) | null = null;
     private isListening = false;
-    private settings: Gio.Settings | null = null;
 
     constructor(
         clipboardManager: VicinaeClipboardManager,
-        extension?: Extension,
+        _extension?: Extension,
     ) {
         // Use the provided clipboard manager instead of creating a new one
         this.clipboardManager = clipboardManager;
 
-        // Get settings from extension if provided
-        if (extension) {
-            try {
-                this.settings = extension.getSettings();
-            } catch (error) {
-                logger("Could not access settings in clipboard service", error);
-            }
-        }
-
         logger("ClipboardService initialized with shared clipboard manager");
+
+        // Start listening to clipboard changes immediately
+        // Note: We'll need to set the DBus object first, so we'll do this in setDBusObject
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
     setDBusObject(dbusObject: Gio.DBusExportedObject): void {
         this.dbusObject = dbusObject;
-    }
 
-    // Helper method to check if an application is blocked
-    private isApplicationBlocked(sourceApp: string): boolean {
-        if (!this.settings) {
-            return false; // If no settings, don't block anything
-        }
+        // Set up the clipboard event listener and register it with the manager
+        this.clipboardListener = (event: ClipboardEvent) => {
+            try {
+                // Calculate additional metadata for the launcher
+                const metadata = calculateClipboardMetadata(event);
 
-        try {
-            const blockedApps = this.settings.get_strv("blocked-applications");
-            return blockedApps.some(
-                (blockedApp: string) =>
-                    sourceApp
-                        .toLowerCase()
-                        .includes(blockedApp.toLowerCase()) ||
-                    blockedApp.toLowerCase().includes(sourceApp.toLowerCase()),
-            );
-        } catch (error) {
-            logger("Error checking blocked applications", error);
-            return false;
-        }
-    }
+                // The clipboard manager already handles blocking logic and logging
+                // We just need to emit the D-Bus signal for non-blocked events
 
-    // Helper method to check if content type should be blocked
-    private shouldBlockContentType(
-        contentType: string,
-        mimeType: string,
-    ): boolean {
-        // Only block text content, not images or other binary content
-        // This prevents blocking screenshots when the last focused app was blocked
-        return contentType === "text" || mimeType.startsWith("text/");
-    }
+                // Emit D-Bus signal with comprehensive clipboard information
+                // Format: (sussssts) = string, uint32, string, string, string, string, uint64, string
+                logger(
+                    `Debug: Emitting D-Bus signal for ${metadata.sourceApp} with data:`,
+                    {
+                        content: `${event.content.substring(0, 50)}...`,
+                        timestamp: event.timestamp,
+                        source: event.source,
+                        mimeType: metadata.mimeType,
+                        contentType: metadata.contentType,
+                        contentHash: metadata.contentHash,
+                        size: metadata.size,
+                        sourceApp: metadata.sourceApp,
+                    },
+                );
 
-    // Method to listen to clipboard changes
-    ListenToClipboardChanges(): void {
-        try {
-            if (this.isListening) {
-                return; // Already listening
+                this.dbusObject?.emit_signal(
+                    "ClipboardChanged",
+                    GLib.Variant.new("(sussssts)", [
+                        String(event.content), // Ensure string
+                        Number(event.timestamp), // Ensure uint32
+                        String(event.source), // Ensure string
+                        String(metadata.mimeType), // Ensure string
+                        String(metadata.contentType), // Ensure string
+                        String(metadata.contentHash), // Ensure string
+                        Number(metadata.size), // Ensure uint64
+                        String(metadata.sourceApp), // Ensure string
+                    ]),
+                );
+
+                logger(`D-Bus signal emitted for ${metadata.sourceApp}`);
+            } catch (signalError) {
+                logger("Error emitting D-Bus clipboard signal", signalError);
             }
+        };
 
-            if (!this.dbusObject) {
-                throw new Error("D-Bus object not set - cannot emit signals");
-            }
+        // Register the listener with the clipboard manager
+        this.clipboardManager.onClipboardChange(this.clipboardListener);
+        this.isListening = true;
 
-            // Set up the clipboard event listener
-            this.clipboardListener = (event: ClipboardEvent) => {
-                try {
-                    // Calculate additional metadata for the launcher
-                    const metadata = calculateClipboardMetadata(event);
-
-                    // Check if the source application is blocked
-                    const isBlocked = this.isApplicationBlocked(
-                        metadata.sourceApp,
-                    );
-                    const shouldBlock =
-                        isBlocked &&
-                        this.shouldBlockContentType(
-                            metadata.contentType,
-                            metadata.mimeType,
-                        );
-
-                    // Log the event with blocked status
-                    logger(
-                        `Clipboard event from ${metadata.sourceApp}: ` +
-                            `type=${metadata.contentType}, ` +
-                            `mime=${metadata.mimeType}, ` +
-                            `isBlocked=${isBlocked}, ` +
-                            `shouldBlock=${shouldBlock}, ` +
-                            `contentLength=${metadata.size}`,
-                    );
-
-                    // Block the event if it should be blocked
-                    if (shouldBlock) {
-                        logger(
-                            `Clipboard access blocked for application: ${metadata.sourceApp} (${metadata.contentType})`,
-                        );
-                        return; // Don't emit signal for blocked applications
-                    }
-
-                    // Emit D-Bus signal with comprehensive clipboard information
-                    // Format: (susssstss) = string, uint32, string, string, string, string, uint64, string
-                    this.dbusObject?.emit_signal(
-                        "ClipboardChanged",
-                        GLib.Variant.new("(sussssts)", [
-                            event.content,
-                            event.timestamp,
-                            event.source as string,
-                            metadata.mimeType,
-                            metadata.contentType,
-                            metadata.contentHash,
-                            metadata.size,
-                            metadata.sourceApp,
-                        ]),
-                    );
-
-                    logger(`D-Bus signal emitted for ${metadata.sourceApp}`);
-                } catch (signalError) {
-                    logger(
-                        "Error emitting D-Bus clipboard signal",
-                        signalError,
-                    );
-                }
-            };
-
-            // Register the listener with the clipboard manager
-            this.clipboardManager.onClipboardChange(this.clipboardListener);
-            this.isListening = true;
-
-            logger("📡 D-Bus clipboard listener activated");
-        } catch (error) {
-            logger("D-Bus: Error setting up clipboard change listener", error);
-            throw error;
-        }
+        logger("📡 D-Bus clipboard listener activated");
     }
 
     // Method to manually trigger a clipboard change (for testing)
@@ -225,6 +156,5 @@ export class ClipboardService {
     destroy(): void {
         this.StopListening();
         this.dbusObject = null;
-        this.settings = null;
     }
 }
