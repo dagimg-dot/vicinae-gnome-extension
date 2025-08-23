@@ -37,7 +37,6 @@ export class WorkspaceManager {
             const workspace = this.getWorkspaceByIndex(index);
             if (workspace) {
                 workspace.activate(global.get_current_time());
-                logger("Switched to workspace", { index });
             }
         } catch (error) {
             logger("Error switching to workspace", error);

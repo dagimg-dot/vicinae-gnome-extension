@@ -28,6 +28,9 @@ export class DBusManager {
             WINDOWS_DBUS_IFACE,
             this.windowsServiceInstance,
         );
+
+        // Set the D-Bus object on the clipboard service so it can emit signals
+        this.clipboardServiceInstance.setDBusObject(this.clipboardService);
     }
 
     exportServices(): void {
@@ -50,6 +53,9 @@ export class DBusManager {
 
     unexportServices(): void {
         try {
+            // Clean up clipboard service
+            this.clipboardServiceInstance.destroy();
+
             unexportDBusService(this.clipboardService);
             unexportDBusService(this.windowsService);
 

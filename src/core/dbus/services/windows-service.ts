@@ -10,7 +10,6 @@ export class WindowsService {
 
     List(): string {
         try {
-            logger("D-Bus: List windows requested");
             const windows = this.windowManager.list();
             return JSON.stringify(windows);
         } catch (error) {
@@ -21,7 +20,6 @@ export class WindowsService {
 
     Details(winid: number): string {
         try {
-            logger("D-Bus: Window details requested", { winid });
             const details = this.windowManager.details(winid);
             return JSON.stringify(details);
         } catch (error) {
@@ -32,7 +30,6 @@ export class WindowsService {
 
     GetTitle(winid: number): string {
         try {
-            logger("D-Bus: Window title requested", { winid });
             return this.windowManager.getTitle(winid);
         } catch (error) {
             logger("D-Bus: Error getting window title", error);
@@ -42,7 +39,6 @@ export class WindowsService {
 
     GetFrameRect(winid: number): string {
         try {
-            logger("D-Bus: Window frame rect requested", { winid });
             const frameRect = this.windowManager.getFrameRect(winid);
             return JSON.stringify(frameRect);
         } catch (error) {
@@ -53,7 +49,6 @@ export class WindowsService {
 
     GetFrameBounds(winid: number): string {
         try {
-            logger("D-Bus: Window frame bounds requested", { winid });
             const frameBounds = this.windowManager.getFrameBounds(winid);
             return JSON.stringify(frameBounds);
         } catch (error) {
@@ -64,10 +59,6 @@ export class WindowsService {
 
     MoveToWorkspace(winid: number, workspaceNum: number): void {
         try {
-            logger("D-Bus: Move window to workspace requested", {
-                winid,
-                workspaceNum,
-            });
             this.windowManager.moveToWorkspace(winid, workspaceNum);
         } catch (error) {
             logger("D-Bus: Error moving window to workspace", error);
@@ -83,13 +74,6 @@ export class WindowsService {
         height: number,
     ): void {
         try {
-            logger("D-Bus: Move resize window requested", {
-                winid,
-                x,
-                y,
-                width,
-                height,
-            });
             this.windowManager.moveResize(winid, x, y, width, height);
         } catch (error) {
             logger("D-Bus: Error move resizing window", error);
@@ -99,7 +83,6 @@ export class WindowsService {
 
     Resize(winid: number, width: number, height: number): void {
         try {
-            logger("D-Bus: Resize window requested", { winid, width, height });
             this.windowManager.resize(winid, width, height);
         } catch (error) {
             logger("D-Bus: Error resizing window", error);
@@ -109,7 +92,6 @@ export class WindowsService {
 
     Move(winid: number, x: number, y: number): void {
         try {
-            logger("D-Bus: Move window requested", { winid, x, y });
             this.windowManager.move(winid, x, y);
         } catch (error) {
             logger("D-Bus: Error moving window", error);
@@ -119,7 +101,6 @@ export class WindowsService {
 
     Maximize(winid: number): void {
         try {
-            logger("D-Bus: Maximize window requested", { winid });
             this.windowManager.maximize(winid);
         } catch (error) {
             logger("D-Bus: Error maximizing window", error);
@@ -129,7 +110,6 @@ export class WindowsService {
 
     Minimize(winid: number): void {
         try {
-            logger("D-Bus: Minimize window requested", { winid });
             this.windowManager.minimize(winid);
         } catch (error) {
             logger("D-Bus: Error minimizing window", error);
@@ -139,7 +119,6 @@ export class WindowsService {
 
     Unmaximize(winid: number): void {
         try {
-            logger("D-Bus: Unmaximize window requested", { winid });
             this.windowManager.unmaximize(winid);
         } catch (error) {
             logger("D-Bus: Error unmaximizing window", error);
@@ -149,7 +128,6 @@ export class WindowsService {
 
     Unminimize(winid: number): void {
         try {
-            logger("D-Bus: Unminimize window requested", { winid });
             this.windowManager.unminimize(winid);
         } catch (error) {
             logger("D-Bus: Error unminimizing window", error);
@@ -159,7 +137,6 @@ export class WindowsService {
 
     Activate(winid: number): void {
         try {
-            logger("D-Bus: Activate window requested", { winid });
             this.windowManager.activate(winid);
         } catch (error) {
             logger("D-Bus: Error activating window", error);
@@ -169,7 +146,6 @@ export class WindowsService {
 
     Close(winid: number): void {
         try {
-            logger("D-Bus: Close window requested", { winid });
             this.windowManager.close(winid);
         } catch (error) {
             logger("D-Bus: Error closing window", error);

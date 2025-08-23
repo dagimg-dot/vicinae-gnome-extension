@@ -3,6 +3,11 @@ export const CLIPBOARD_DBUS_IFACE = `
    <interface name="org.gnome.Shell.Extensions.Clipboard">
       <method name="ListenToClipboardChanges">
       </method>
+      <method name="GetClipboardMimeTypes">
+         <arg type="as" direction="out" name="mimeTypes" />
+      </method>
+      <method name="StopListening">
+      </method>
       <method name="TriggerClipboardChange">
          <arg type="s" direction="in" name="content" />
          <arg type="s" direction="in" name="source" />
@@ -17,6 +22,11 @@ export const CLIPBOARD_DBUS_IFACE = `
          <arg type="s" name="content" />
          <arg type="u" name="timestamp" />
          <arg type="s" name="source" />
+         <arg type="s" name="mimeType" />
+         <arg type="s" name="contentType" />
+         <arg type="s" name="contentHash" />
+         <arg type="t" name="size" />
+         <arg type="s" name="sourceApp" />
       </signal>
    </interface>
 </node>`;
