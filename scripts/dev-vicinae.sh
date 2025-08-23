@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-MOUNT_POINT="/mnt/host/gnomext"
-HOST_SPEC="jd@192.168.0.221:/home/jd/JDrive/Projects/TYPESCRIPT/gnome-extensions/gnomext"
+MOUNT_POINT="/mnt/host/vicinae-gnome-extension"
+HOST_SPEC="jd@192.168.122.1:/home/jd/JDrive/Projects/TYPESCRIPT/gnome-extensions/vicinae-gnome-extension"
 
 mkdir -p "$MOUNT_POINT"
 

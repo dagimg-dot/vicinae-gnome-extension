@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-    <schema id="org.gnome.shell.extensions.gnomext" path="/org/gnome/shell/extensions/gnomext/">
+    <schema id="org.gnome.shell.extensions.vicinae" path="/org/gnome/shell/extensions/vicinae/">
         <key name="say-hello" type="b">
             <default>true</default>
         </key>

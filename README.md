@@ -1,12 +1,6 @@
-> # gnomext - Gnome Shell Extension Template
+> # Vicinae Gnome Extension
 
-> Get to coding in minutes using this gnome shell extension template that comes out of the box with everything you need to get started including
-
-- Typescript
-- Biome for linting and formatting
-- Esbuild for building
-- HMR (hot module replacement) using another virtual machine or nested session
-- Third party dependencies support
+Gnome extension for vicinae launcher to expose clipboard and window managment APIs.
 
 ## Development
 
@@ -25,7 +19,7 @@
   - `bun run lint:fix` → Lint with unsafe fixes
   - `bun run check` → Lint + format
 
-Optional VM bootstrap (copies `scripts/dev.sh`, installs sshfs on VM):
+Optional VM bootstrap (copies `scripts/dev-vicinae.sh`, installs sshfs on VM):
 
 ```bash
 # Run the script itself
@@ -53,20 +47,20 @@ curl -fsSL https://bun.sh/install | bash
 
 ### Share the project via SSHFS (already automated in the setup script)
 
-Use `scripts/dev.sh` inside the VM. It mounts the host project to `/mnt/host/gnomext`, cds there, and drops you into a shell.
+Use `scripts/dev-vicinae.sh` inside the VM. It mounts the host project to `/mnt/host/vicinae-gnome-extension`, cds there, and drops you into a shell.
 
-1) In `scripts/dev.sh`, set `HOST_SPEC` to your host user/IP and project path.
+1) In `scripts/dev-vicinae.sh`, set `HOST_SPEC` to your host user/IP and project path.
 2) Copy to VM (or use `setup-vm.sh`):
 
 ```bash
-scp scripts/dev.sh user@vm-ip:~/dev.sh
-ssh user@vm-ip 'chmod +x ~/dev.sh'
+scp scripts/dev-vicinae.sh user@vm-ip:~/dev-vicinae.sh
+ssh user@vm-ip 'chmod +x ~/dev-vicinae.sh'
 ```
 
 3) On the VM:
 
 ```bash
-~/dev.sh
+~/dev-vicinae.sh
 ```
 
 ### Build, install, and reload (inside the VM)

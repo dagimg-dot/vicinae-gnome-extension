@@ -1,10 +1,10 @@
 {
-  "name": "gnomext",
-  "description": "gnomext is a calendar GNOME Extension that gives you the Ethiopian calendar right from your top bar.",
-  "uuid": "eth-cal@dagimg-dot",
+  "name": "Vicinae",
+  "description": "Gnome extension for vicinae launcher to expose clipboard and window managment APIs.",
+  "uuid": "vicinae@dagimg-dot",
   "original-author": "Dagim G. Astatkie",
   "shell-version": ["46", "47", "48"],
-  "settings-schema": "org.gnome.shell.extensions.gnomext",
+  "settings-schema": "org.gnome.shell.extensions.vicinae",
   "version-name": "0.1.0",
-  "url": "https://github.com/dagimg-dot/gnomext"
+  "url": "https://github.com/dagimg-dot/vicinae-gnome-extension"
 }

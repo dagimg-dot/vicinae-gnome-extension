@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./setup-vm.sh user@vm-ip
-# Copies ./dev.sh to the VM's home, ensures it's executable, creates /mnt/host/gnomext,
+# Copies ./dev-vicinae.sh to the VM's home, ensures it's executable, creates /mnt/host/vicinae-gnome-extension,
 # and installs sshfs on the VM for mounting the host project from within the VM.
 
 if [ "${1:-}" = "" ]; then
@@ -14,13 +14,13 @@ VM_TARGET="$1"
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-if [ ! -f "$SCRIPT_DIR/dev.sh" ]; then
-    echo "ERROR: $SCRIPT_DIR/dev.sh not found."
+if [ ! -f "$SCRIPT_DIR/dev-vicinae.sh" ]; then
+    echo "ERROR: $SCRIPT_DIR/dev-vicinae.sh not found."
     exit 1
 fi
 
-echo "Copying dev.sh to $VM_TARGET:~/dev.sh ..."
-scp "$SCRIPT_DIR/dev.sh" "$VM_TARGET:~/dev.sh"
+echo "Copying dev-vicinae.sh to $VM_TARGET:~/dev-vicinae.sh ..."
+scp "$SCRIPT_DIR/dev-vicinae.sh" "$VM_TARGET:~/dev-vicinae.sh"
 
 echo "Preparing VM (install sshfs, create mountpoint, set permissions)..."
 # Use a TTY so sudo can prompt if needed; allow password auth (no BatchMode)
@@ -34,10 +34,10 @@ ssh -t "$VM_TARGET" "\
       fi; \
     fi; \
     mkdir -p /mnt/host; \
-    chmod +x ~/dev.sh; \
+    chmod +x ~/dev-vicinae.sh; \
     echo 'Setup complete on VM.' \
 " >/dev/null
 
-echo "All done. On the VM, run: ~/dev.sh"
+echo "All done. On the VM, run: ~/dev-vicinae.sh"
 
 

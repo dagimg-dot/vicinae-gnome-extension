@@ -35,7 +35,7 @@ const GeneralPage = GObject.registerClass(
     },
     class GeneralPage extends Adw.PreferencesPage {
         bindSettings(settings: Gio.Settings) {
-            logger("This is from prefs");
+            logger("This is from Vicinae prefs");
             const children = this as unknown as GeneralPageChildren;
             settings.bind(
                 "say-hello",
@@ -84,7 +84,7 @@ const AboutPage = GObject.registerClass(
     },
 );
 
-export default class gnomextPrefs extends ExtensionPreferences {
+export default class VicinaePrefs extends ExtensionPreferences {
     override async fillPreferencesWindow(
         window: Adw.PreferencesWindow,
     ): Promise<void> {

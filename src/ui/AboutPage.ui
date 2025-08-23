@@ -15,7 +15,7 @@
             <property name="margin-bottom">15</property>
             <child>
               <object class="GtkLabel" id="extensionName">
-                <property name="label">The name of this extension</property>
+                <property name="label">Vicinae</property>
                 <property name="margin-bottom">5</property>
                 <style>
                   <class name="title-1"/>
@@ -39,7 +39,7 @@
             <property name="margin-bottom">5</property>
             <child>
               <object class="GtkLabel" id="extensionDescription">
-                <property name="label">Description of this extension</property>
+                <property name="label">Gnome extension for vicinae launcher to expose clipboard and window managment APIs.</property>
                 <property name="justify">2</property>
               </object>
             </child>

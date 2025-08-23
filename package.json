@@ -1,12 +1,12 @@
 {
-  "name": "gnomext",
+  "name": "vicinae-gnome-extension",
   "version": "0.1.0",
   "author": "Dagim G. Astatkie",
   "type": "module",
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@biomejs/biome": "^2.1.4",
+    "@biomejs/biome": "^2.2.2",
     "@girs/gjs": "^4.0.0-beta.25",
     "@girs/gnome-shell": "^48.0.2",
     "esbuild": "^0.25.9",
