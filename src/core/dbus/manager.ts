@@ -1,10 +1,12 @@
 import type Gio from "gi://Gio";
+import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import {
     createDBusService,
     exportDBusService,
     unexportDBusService,
 } from "../../utils/dbus-utils.js";
 import { logger } from "../../utils/logger.js";
+import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import { CLIPBOARD_DBUS_IFACE } from "./interfaces/clipboard.js";
 import { WINDOWS_DBUS_IFACE } from "./interfaces/windows.js";
 import { ClipboardService } from "./services/clipboard-service.js";
@@ -16,8 +18,20 @@ export class DBusManager {
     private clipboardServiceInstance: ClipboardService;
     private windowsServiceInstance: WindowsService;
 
-    constructor() {
-        this.clipboardServiceInstance = new ClipboardService();
+    constructor(
+        extension?: Extension,
+        clipboardManager?: VicinaeClipboardManager,
+    ) {
+        if (!clipboardManager) {
+            throw new Error(
+                "ClipboardManager instance is required for DBusManager",
+            );
+        }
+
+        this.clipboardServiceInstance = new ClipboardService(
+            clipboardManager,
+            extension,
+        );
         this.windowsServiceInstance = new WindowsService();
 
         this.clipboardService = createDBusService(

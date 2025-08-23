@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
     <schema id="org.gnome.shell.extensions.vicinae" path="/org/gnome/shell/extensions/vicinae/">
-        <key name="say-hello" type="b">
+        <key name="blocked-applications" type="as">
+            <default>[]</default>
+            <summary>Blocked applications</summary>
+            <description>List of application names that should be blocked from clipboard access</description>
+        </key>
+        <key name="show-status-indicator" type="b">
             <default>true</default>
+            <summary>Show status bar indicator</summary>
+            <description>Whether to show the Vicinae indicator in the status bar</description>
+        </key>
+        <key name="logging-level" type="s">
+            <default>'info'</default>
+            <summary>Logging verbosity level</summary>
+            <description>Controls how verbose the extension logging should be (debug, info, warn, error)</description>
         </key>
     </schema>
 </schemalist>

@@ -1,29 +1,45 @@
-import Clutter from "gi://Clutter";
 import St from "gi://St";
+import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
+import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
+import { Icons } from "../lib/icons.js";
 import { logger } from "../utils/logger.js";
 
 export class VicinaeIndicator {
     private indicator: PanelMenu.Button;
+    private extension: Extension;
 
-    constructor() {
+    constructor(extension: Extension) {
+        this.extension = extension;
         this.indicator = new PanelMenu.Button(0, "Vicinae Gnome Extension");
         this.setupUI();
+        this.setupMenu();
     }
 
     private setupUI() {
-        const label = new St.Label({
-            y_align: Clutter.ActorAlign.CENTER,
+        // Initialize icons
+        new Icons(this.extension.path);
+
+        // Create icon instead of text label
+        const icon = new St.Icon({
+            gicon: Icons.get("smile"),
+            style_class: "system-status-icon",
         });
 
-        label.text = "Vicinae";
+        this.indicator.add_child(icon);
+    }
 
-        this.indicator.add_child(label);
-
-        this.indicator.connect("button-press-event", () => {
-            logger("Vicinae indicator clicked");
-            return Clutter.EVENT_STOP;
+    private setupMenu() {
+        // Add settings menu item
+        const settingsItem = new PopupMenu.PopupMenuItem("Settings");
+        settingsItem.connect("activate", () => {
+            logger("Opening Vicinae settings");
+            this.extension.openPreferences();
         });
+
+        if (this.indicator.menu && "addMenuItem" in this.indicator.menu) {
+            this.indicator.menu.addMenuItem(settingsItem);
+        }
     }
 
     getButton(): PanelMenu.Button {

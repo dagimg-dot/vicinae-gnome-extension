@@ -5,11 +5,46 @@
     <property name="title" translatable="true">General</property>
     <property name="icon_name">dialog-information-symbolic</property>
     <child>
+      <object class="AdwPreferencesGroup" id="blockedAppsGroup">
+        <property name="title" translatable="true">Blocked Applications</property>
+        <property name="description" translatable="true">Applications in this list will be blocked from clipboard access</property>
+        <property name="header-suffix">
+          <object class="GtkButton" id="addWindowButton">
+            <property name="label" translatable="true">Add window</property>
+            <property name="css-classes">suggested-action</property>
+            <property name="valign">center</property>
+          </object>
+        </property>
+      </object>
+    </child>
+    <child>
       <object class="AdwPreferencesGroup">
+        <property name="title" translatable="true">Interface Settings</property>
         <child>
-          <object class="AdwSwitchRow" id="sayHello">
-            <property name="title" translatable="true">Say hello</property>
-            <property name="subtitle" translatable="true">Whether to say hello</property>
+          <object class="AdwSwitchRow" id="showStatusIndicator">
+            <property name="title" translatable="true">Show Status Indicator</property>
+            <property name="subtitle" translatable="true">Display Vicinae indicator in the top bar</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="true">Debug Settings</property>
+        <child>
+          <object class="AdwComboRow" id="loggingLevel">
+            <property name="title" translatable="true">Logging Level</property>
+            <property name="subtitle" translatable="true">Controls verbosity of extension logging</property>
+            <property name="model">
+              <object class="GtkStringList">
+                <items>
+                  <item>error</item>
+                  <item>warn</item>
+                  <item>info</item>
+                  <item>debug</item>
+                </items>
+              </object>
+            </property>
           </object>
         </child>
       </object>

@@ -1,4 +1,5 @@
 import type GLib from "gi://GLib";
+import type Gio from "gi://Gio";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
@@ -18,9 +19,65 @@ export class VicinaeClipboardManager {
     private selection: Meta.Selection | null = null;
     private _selectionOwnerChangedId: number | null = null;
     private _debouncing: number = 0;
+    private settings: Gio.Settings | null = null;
 
     constructor() {
         this.setupClipboardMonitoring();
+    }
+
+    // Method to set settings from external source (like main extension)
+    setSettings(settings: Gio.Settings): void {
+        this.settings = settings;
+        logger("Settings set in clipboard manager from external source");
+    }
+
+    // Method to update settings when they change
+    updateSettings(settings: Gio.Settings): void {
+        this.settings = settings;
+        logger("Settings updated in clipboard manager");
+    }
+
+    private isApplicationBlocked(sourceApp: string): boolean {
+        if (!this.settings) {
+            logger(
+                "No settings available in clipboard manager - blocking logic disabled",
+            );
+            return false; // If no settings, don't block anything
+        }
+
+        try {
+            const blockedApps = this.settings.get_strv("blocked-applications");
+            const isBlocked = blockedApps.some(
+                (blockedApp: string) =>
+                    sourceApp
+                        .toLowerCase()
+                        .includes(blockedApp.toLowerCase()) ||
+                    blockedApp.toLowerCase().includes(sourceApp.toLowerCase()),
+            );
+
+            if (isBlocked) {
+                logger(
+                    `Application ${sourceApp} is blocked from clipboard access`,
+                );
+            }
+
+            return isBlocked;
+        } catch (error) {
+            logger(
+                "Error checking blocked applications in clipboard manager",
+                error,
+            );
+            return false;
+        }
+    }
+
+    private shouldBlockContentType(
+        contentType: string,
+        mimeType: string,
+    ): boolean {
+        // Only block text content, not images or other binary content
+        // This prevents blocking screenshots when the last focused app was blocked
+        return contentType === "text" || mimeType.startsWith("text/");
     }
 
     private setupClipboardMonitoring() {
@@ -279,6 +336,15 @@ export class VicinaeClipboardManager {
         // Get comprehensive metadata using the utility function
         const metadata = calculateClipboardMetadata(event);
 
+        // Check blocking status for logging purposes
+        const isBlocked = this.isApplicationBlocked(metadata.sourceApp);
+        const shouldBlock =
+            isBlocked &&
+            this.shouldBlockContentType(
+                metadata.contentType,
+                metadata.mimeType,
+            );
+
         logger("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
             content:
@@ -295,6 +361,12 @@ export class VicinaeClipboardManager {
             contentHash: metadata.contentHash,
             size: metadata.size,
             sourceApp: metadata.sourceApp,
+            // Blocking status for user visibility
+            isBlocked: isBlocked,
+            shouldBlock: shouldBlock,
+            note: shouldBlock
+                ? "⚠️ This event will be blocked by DBus service"
+                : "✅ Event will be processed normally",
         });
 
         this.eventListeners.forEach((listener) => {
