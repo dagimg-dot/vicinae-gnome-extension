@@ -1,5 +1,6 @@
 import type { BufferLike } from "../core/clipboard/types.js";
 import { logger } from "./logger.js";
+import { getFocusedWindowApp } from "./window-utils.js";
 
 /**
  * Converts a Uint8Array to base64 string using direct bit manipulation
@@ -345,7 +346,7 @@ export function calculateClipboardMetadata(event: {
     let contentType = "text";
     let contentHash = "";
     let size = 0;
-    const sourceApp = "gnome-shell";
+    const sourceApp = getFocusedWindowApp();
 
     // Determine content type and MIME type
     if (event.source === "image") {
