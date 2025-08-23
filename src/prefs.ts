@@ -200,14 +200,25 @@ const GeneralPage = GObject.registerClass(
         private emptyRows: Set<BlockedAppRow> = new Set();
 
         bindSettings(settings: Gio.Settings) {
-            logger("Binding Vicinae preferences settings");
             this.settings = settings;
-            const children = this as unknown as GeneralPageChildren;
+            logger("Settings bound to GeneralPage");
 
-            // Load and display blocked applications
+            // Debug: Verify settings object
+            try {
+                const testValue = this.settings.get_strv(
+                    "blocked-applications",
+                );
+                logger(
+                    `Debug: Settings verification - blocked-applications: [${testValue.join(", ")}]`,
+                );
+            } catch (error) {
+                logger("Debug: Error verifying settings", error);
+            }
+
             this.loadBlockedApplications();
+            this.updateAddButtonState(); // Initial state
 
-            // Connect add window button
+            const children = this as unknown as GeneralPageChildren;
             children._addWindowButton.connect("clicked", () => {
                 this.addEmptyBlockedAppRow();
             });
@@ -402,10 +413,17 @@ const GeneralPage = GObject.registerClass(
                     "blocked-applications",
                 );
 
-                // Remove old class if it exists
-                const filteredApps = currentBlockedApps.filter(
-                    (app) => app !== oldClass,
-                );
+                let filteredApps: string[];
+
+                if (oldClass && oldClass.trim() !== "") {
+                    // Updating existing app - remove old class
+                    filteredApps = currentBlockedApps.filter(
+                        (app) => app !== oldClass,
+                    );
+                } else {
+                    // Adding new app - use current list as is
+                    filteredApps = [...currentBlockedApps];
+                }
 
                 // Add new class
                 filteredApps.push(newClass);
@@ -414,12 +432,14 @@ const GeneralPage = GObject.registerClass(
                 this.settings.set_strv("blocked-applications", filteredApps);
 
                 // Update our internal tracking
-                if (oldClass) {
+                if (oldClass && oldClass.trim() !== "") {
                     this.blockedAppRows.delete(oldClass);
                 }
                 this.blockedAppRows.set(newClass, row);
 
-                logger(`Updated blocked app: ${oldClass} -> ${newClass}`);
+                logger(
+                    `Updated blocked app: ${oldClass || "new"} -> ${newClass}`,
+                );
                 logger(`Current blocked apps: [${filteredApps.join(", ")}]`);
             } catch (error) {
                 logger("Error updating blocked app in settings", error);
@@ -431,6 +451,12 @@ const GeneralPage = GObject.registerClass(
             oldClass: string,
         ) {
             try {
+                // Only remove if we have a valid oldClass
+                if (!oldClass || oldClass.trim() === "") {
+                    logger("Skipping removal - oldClass is empty");
+                    return;
+                }
+
                 // Get current blocked apps from settings
                 const currentBlockedApps = this.settings.get_strv(
                     "blocked-applications",

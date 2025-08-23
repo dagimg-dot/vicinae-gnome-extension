@@ -32,9 +32,7 @@ export class ClipboardService {
         // Set up the clipboard event listener and register it with the manager
         this.clipboardListener = (event: ClipboardEvent) => {
             try {
-                // Calculate additional metadata for the launcher
                 const metadata = calculateClipboardMetadata(event);
-
                 // The clipboard manager already handles blocking logic and logging
                 // We just need to emit the D-Bus signal for non-blocked events
 
@@ -70,7 +68,28 @@ export class ClipboardService {
 
                 logger(`D-Bus signal emitted for ${metadata.sourceApp}`);
             } catch (signalError) {
-                logger("Error emitting D-Bus clipboard signal", signalError);
+                logger("Error emitting D-Bus clipboard signal", {
+                    error: signalError,
+                    errorType: typeof signalError,
+                    errorMessage:
+                        signalError instanceof Error
+                            ? signalError.message
+                            : String(signalError),
+                    stack:
+                        signalError instanceof Error
+                            ? signalError.stack
+                            : undefined,
+                    data: {
+                        content: event.content.substring(0, 50),
+                        timestamp: event.timestamp,
+                        source: event.source,
+                        mimeType: "unknown",
+                        contentType: "unknown",
+                        contentHash: "unknown",
+                        size: 0,
+                        sourceApp: "unknown",
+                    },
+                });
             }
         };
 
