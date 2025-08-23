@@ -57,7 +57,7 @@ echo
 capture_gnome_shell_extension_logs() {
     if [ "$FILTERED" = true ]; then
         journalctl /usr/bin/gnome-shell -f -o cat | awk '
-        /^'"$PROJECT_NAME"'/ {
+        /^\['"$PROJECT_NAME"'\]/ {
             print
         }
         /^Extension/ {

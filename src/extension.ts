@@ -1,44 +1,56 @@
-import Clutter from "gi://Clutter";
-import St from "gi://St";
-
 import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
-import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
+import { VicinaeIndicator } from "./components/indicator.js";
+import { DBusManager } from "./core/dbus/manager.js";
 import { logger } from "./utils/logger.js";
 
 export default class Vicinae extends Extension {
-    #indicator: PanelMenu.Button | undefined;
+    private indicator!: VicinaeIndicator | null;
+    private dbusManager!: DBusManager | null;
 
     enable() {
-        logger("enabled");
+        logger("Vicinae extension enabled");
 
-        this.#indicator = new PanelMenu.Button(0, "Vicinae Gnome Extension");
+        try {
+            // Initialize D-Bus services
+            this.dbusManager = new DBusManager();
+            this.dbusManager.exportServices();
 
-        const label = new St.Label({
-            y_align: Clutter.ActorAlign.CENTER,
-        });
+            // Initialize UI indicator
+            this.indicator = new VicinaeIndicator();
+            Main.panel.addToStatusArea(
+                "vicinae-gnome-extension",
+                this.indicator.getButton(),
+                0,
+                "center",
+            );
 
-        label.text = "Vicinae";
-
-        this.#indicator.add_child(label);
-
-        this.#indicator.connect("button-press-event", () => {
-            logger("Hello vicinae-gnome-extension");
-            return Clutter.EVENT_STOP;
-        });
-
-        Main.panel.addToStatusArea(
-            "vicinae-gnome-extension",
-            this.#indicator,
-            0,
-            "center",
-        );
+            logger("Vicinae extension initialized successfully");
+        } catch (error) {
+            logger("Failed to initialize Vicinae extension", error);
+            throw error;
+        }
     }
 
     disable() {
-        if (!this.#indicator) return;
+        logger("Vicinae extension disabled");
 
-        this.#indicator.destroy();
-        this.#indicator = undefined;
+        try {
+            // Clean up UI
+            if (this.indicator) {
+                this.indicator.destroy();
+                this.indicator = null;
+            }
+
+            // Clean up D-Bus services
+            if (this.dbusManager) {
+                this.dbusManager.unexportServices();
+                this.dbusManager = null;
+            }
+
+            logger("Vicinae extension cleaned up successfully");
+        } catch (error) {
+            logger("Error during extension cleanup", error);
+        }
     }
 }
