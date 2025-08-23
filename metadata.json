@@ -1,0 +1,10 @@
+{
+  "name": "gnomext",
+  "description": "gnomext is a calendar GNOME Extension that gives you the Ethiopian calendar right from your top bar.",
+  "uuid": "eth-cal@dagimg-dot",
+  "original-author": "Dagim G. Astatkie",
+  "shell-version": ["46", "47", "48"],
+  "settings-schema": "org.gnome.shell.extensions.gnomext",
+  "version-name": "0.1.0",
+  "url": "https://github.com/dagimg-dot/gnomext"
+}

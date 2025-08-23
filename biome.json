@@ -1,0 +1,14 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "includes": ["**/*.ts", "**/*.js", "**/*.css", "!dist/**"]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": { "recommended": true },
+    "includes": ["**/*.ts", "**/*.js", "**/*.css", "!dist/**"]
+  },
+  "javascript": { "globals": ["imports"] }
+}

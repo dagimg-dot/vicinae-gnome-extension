@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="TypescriptTemplateGeneralPage" parent="AdwPreferencesPage">
+    <property name="title" translatable="true">General</property>
+    <property name="icon_name">dialog-information-symbolic</property>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <child>
+          <object class="AdwSwitchRow" id="sayHello">
+            <property name="title" translatable="true">Say hello</property>
+            <property name="subtitle" translatable="true">Whether to say hello</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
