@@ -177,8 +177,10 @@ export class LauncherManager {
 
             if (!focusedWindow) {
                 logger(
-                    "LauncherManager: No focused window, skipping focus change",
+                    "LauncherManager: No focused window, closing Vicinae windows",
                 );
+                // Close Vicinae windows when there's no focused window
+                this.closeTrackedWindows();
                 return;
             }
 
