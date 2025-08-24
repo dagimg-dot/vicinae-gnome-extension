@@ -10,6 +10,7 @@ import type { ExtensionMetadata } from "@girs/gnome-shell/extensions/extension";
 import { logger } from "./utils/logger.js";
 
 const LICENSE = "You can check out the LICENSE in the github page 🙂";
+type BlockedAppRowType = InstanceType<typeof BlockedAppRow>;
 
 const getTemplate = (name: string): string => {
     const uri = GLib.uri_resolve_relative(
@@ -45,6 +46,7 @@ const BlockedAppRow = GObject.registerClass(
     class BlockedAppRow extends Adw.ExpanderRow {
         private windowClass: string = "";
         private inputValue: string = ""; // Separate state for input field
+        private originalWindowClass: string = ""; // Store the original value before editing
         private windowEntry: Adw.EntryRow;
         private checkButton: Gtk.Button;
         private deleteButton: Gtk.Button;
@@ -113,6 +115,7 @@ const BlockedAppRow = GObject.registerClass(
         setWindowClass(windowClass: string) {
             this.windowClass = windowClass;
             this.inputValue = windowClass;
+            this.originalWindowClass = windowClass; // Initialize original value
             this.windowEntry.set_text(windowClass);
             this.updateDisplay();
             this.updateCheckButtonState();
@@ -124,6 +127,15 @@ const BlockedAppRow = GObject.registerClass(
 
         getInputValue(): string {
             return this.inputValue;
+        }
+
+        // Get the current effective window class (either the original or the edited value)
+        getCurrentWindowClass(): string {
+            return this.inputValue.trim() || this.windowClass;
+        }
+
+        getOriginalWindowClass(): string {
+            return this.originalWindowClass;
         }
 
         isEmpty(): boolean {
@@ -140,6 +152,10 @@ const BlockedAppRow = GObject.registerClass(
             const newValue = this.inputValue.trim();
 
             if (newValue !== oldValue) {
+                // Store the original value before updating
+                this.originalWindowClass = oldValue;
+
+                // Update the main state
                 this.windowClass = newValue;
                 this.updateDisplay();
                 // Emit save signal so parent can update settings
@@ -196,24 +212,12 @@ const GeneralPage = GObject.registerClass(
     },
     class GeneralPage extends Adw.PreferencesPage {
         private settings!: Gio.Settings;
-        private blockedAppRows: Map<string, BlockedAppRow> = new Map();
-        private emptyRows: Set<BlockedAppRow> = new Set();
+        private blockedAppRows: Map<string, BlockedAppRowType> = new Map();
+        private emptyRows: Set<BlockedAppRowType> = new Set();
 
         bindSettings(settings: Gio.Settings) {
             this.settings = settings;
             logger("Settings bound to GeneralPage");
-
-            // Debug: Verify settings object
-            try {
-                const testValue = this.settings.get_strv(
-                    "blocked-applications",
-                );
-                logger(
-                    `Debug: Settings verification - blocked-applications: [${testValue.join(", ")}]`,
-                );
-            } catch (error) {
-                logger("Debug: Error verifying settings", error);
-            }
 
             this.loadBlockedApplications();
             this.updateAddButtonState(); // Initial state
@@ -258,16 +262,10 @@ const GeneralPage = GObject.registerClass(
                 const blockedApps = this.settings.get_strv(
                     "blocked-applications",
                 );
-                logger(
-                    `Loading blocked applications: [${blockedApps.join(", ")}]`,
-                );
 
                 // Clean up any duplicates that might exist
                 const uniqueBlockedApps = this.removeDuplicates(blockedApps);
                 if (uniqueBlockedApps.length !== blockedApps.length) {
-                    logger(
-                        `Cleaned up duplicates: [${blockedApps.join(", ")}] -> [${uniqueBlockedApps.join(", ")}]`,
-                    );
                     this.settings.set_strv(
                         "blocked-applications",
                         uniqueBlockedApps,
@@ -276,7 +274,11 @@ const GeneralPage = GObject.registerClass(
 
                 // Clear existing rows
                 const children = this as unknown as GeneralPageChildren;
-                children._blockedAppsGroup.remove_all();
+                // Remove all existing rows from the UI by iterating through children
+                const existingRows = Array.from(this.blockedAppRows.values());
+                existingRows.forEach((row) => {
+                    children._blockedAppsGroup.remove(row);
+                });
                 this.blockedAppRows.clear();
                 this.emptyRows.clear();
 
@@ -284,10 +286,6 @@ const GeneralPage = GObject.registerClass(
                 uniqueBlockedApps.forEach((windowClass) => {
                     this.addBlockedAppRow(windowClass);
                 });
-
-                logger(
-                    `Loaded ${uniqueBlockedApps.length} blocked applications`,
-                );
             } catch (error) {
                 logger("Error loading blocked applications", error);
             }
@@ -342,7 +340,7 @@ const GeneralPage = GObject.registerClass(
             this.updateAddButtonState();
         }
 
-        private handleInputChange(row: BlockedAppRow) {
+        private handleInputChange(row: BlockedAppRowType) {
             const isEmpty = row.isEmpty();
             const wasEmpty = this.emptyRows.has(row);
 
@@ -361,21 +359,24 @@ const GeneralPage = GObject.registerClass(
         private updateAddButtonState() {
             const children = this as unknown as GeneralPageChildren;
             // Enable button if there are no empty rows
-            children._addWindowButton.set_sensitive(this.emptyRows.size === 0);
+            const hasEmptyRows = this.emptyRows.size > 0;
+            children._addWindowButton.set_sensitive(!hasEmptyRows);
         }
 
-        private handleSaveRequest(row: BlockedAppRow) {
-            const oldClass = row.getWindowClass();
+        private handleSaveRequest(row: BlockedAppRowType) {
+            const oldClass = row.getOriginalWindowClass();
             const newClass = row.getInputValue().trim();
 
             if (newClass) {
-                // Check if this window class already exists (excluding the current row)
-                const existingRows = Array.from(this.blockedAppRows.values());
-                const isDuplicate = existingRows.some(
-                    (existingRow) =>
-                        existingRow !== row &&
-                        existingRow.getWindowClass().toLowerCase() ===
-                            newClass.toLowerCase(),
+                // Check if this window class already exists in settings (excluding the current row's old class)
+                const currentBlockedApps = this.settings.get_strv(
+                    "blocked-applications",
+                );
+
+                const isDuplicate = currentBlockedApps.some(
+                    (app) =>
+                        app !== oldClass && // Exclude the current row's old class
+                        app.toLowerCase() === newClass.toLowerCase(),
                 );
 
                 if (isDuplicate) {
@@ -393,9 +394,9 @@ const GeneralPage = GObject.registerClass(
                     // Reset to old value and don't save
                     row.setWindowClass(oldClass);
                     return;
+                } else {
+                    this.updateBlockedAppInSettings(row, oldClass, newClass);
                 }
-
-                this.updateBlockedAppInSettings(row, oldClass, newClass);
             } else {
                 this.removeBlockedAppFromSettings(row, oldClass);
             }
@@ -403,12 +404,12 @@ const GeneralPage = GObject.registerClass(
         }
 
         private updateBlockedAppInSettings(
-            row: BlockedAppRow,
+            row: BlockedAppRowType,
             oldClass: string,
             newClass: string,
         ) {
             try {
-                // Get current blocked apps from settings
+                // Get blocked apps from settings
                 const currentBlockedApps = this.settings.get_strv(
                     "blocked-applications",
                 );
@@ -436,24 +437,18 @@ const GeneralPage = GObject.registerClass(
                     this.blockedAppRows.delete(oldClass);
                 }
                 this.blockedAppRows.set(newClass, row);
-
-                logger(
-                    `Updated blocked app: ${oldClass || "new"} -> ${newClass}`,
-                );
-                logger(`Current blocked apps: [${filteredApps.join(", ")}]`);
             } catch (error) {
                 logger("Error updating blocked app in settings", error);
             }
         }
 
         private removeBlockedAppFromSettings(
-            _row: BlockedAppRow,
+            _row: BlockedAppRowType,
             oldClass: string,
         ) {
             try {
                 // Only remove if we have a valid oldClass
                 if (!oldClass || oldClass.trim() === "") {
-                    logger("Skipping removal - oldClass is empty");
                     return;
                 }
 
@@ -472,15 +467,12 @@ const GeneralPage = GObject.registerClass(
 
                 // Update our internal tracking
                 this.blockedAppRows.delete(oldClass);
-
-                logger(`Removed blocked app: ${oldClass}`);
-                logger(`Current blocked apps: [${filteredApps.join(", ")}]`);
             } catch (error) {
                 logger("Error removing blocked app from settings", error);
             }
         }
 
-        private removeBlockedAppRow(row: BlockedAppRow) {
+        private removeBlockedAppRow(row: BlockedAppRowType) {
             const children = this as unknown as GeneralPageChildren;
             const windowClass = row.getWindowClass();
 
@@ -489,6 +481,7 @@ const GeneralPage = GObject.registerClass(
                 const currentApps = this.settings.get_strv(
                     "blocked-applications",
                 );
+
                 const updatedApps = currentApps.filter(
                     (app) => app !== windowClass,
                 );
