@@ -16,5 +16,15 @@
             <summary>Logging verbosity level</summary>
             <description>Controls how verbose the extension logging should be (debug, info, warn, error)</description>
         </key>
+        <key name="launcher-auto-close-focus-loss" type="b">
+            <default>true</default>
+            <summary>Auto-close launcher on focus loss</summary>
+            <description>Whether to automatically close the launcher when it loses focus</description>
+        </key>
+        <key name="launcher-app-class" type="s">
+            <default>'vicinae'</default>
+            <summary>Launcher application class</summary>
+            <description>The window class name of the launcher application to manage</description>
+        </key>
     </schema>
 </schemalist>

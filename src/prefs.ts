@@ -197,6 +197,8 @@ interface GeneralPageChildren {
     _addWindowButton: Gtk.Button;
     _showStatusIndicator: Adw.SwitchRow;
     _loggingLevel: Adw.ComboRow;
+    _launcherAutoCloseFocusLoss: Adw.SwitchRow;
+    _launcherAppClass: Adw.EntryRow;
 }
 
 const GeneralPage = GObject.registerClass(
@@ -208,6 +210,8 @@ const GeneralPage = GObject.registerClass(
             "addWindowButton",
             "showStatusIndicator",
             "loggingLevel",
+            "launcherAutoCloseFocusLoss",
+            "launcherAppClass",
         ],
     },
     class GeneralPage extends Adw.PreferencesPage {
@@ -255,6 +259,21 @@ const GeneralPage = GObject.registerClass(
                     );
                 }
             });
+
+            // Bind launcher auto-close settings
+            settings.bind(
+                "launcher-auto-close-focus-loss",
+                children._launcherAutoCloseFocusLoss,
+                "active",
+                Gio.SettingsBindFlags.DEFAULT,
+            );
+
+            settings.bind(
+                "launcher-app-class",
+                children._launcherAppClass,
+                "text",
+                Gio.SettingsBindFlags.DEFAULT,
+            );
         }
 
         private loadBlockedApplications() {

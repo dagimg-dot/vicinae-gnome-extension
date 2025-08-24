@@ -4,14 +4,17 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
+import { LauncherManager } from "./core/windows/launcher-manager.js";
 import { logger } from "./utils/logger.js";
 
 export default class Vicinae extends Extension {
     private indicator!: VicinaeIndicator | null;
     private dbusManager!: DBusManager | null;
     private clipboardManager!: VicinaeClipboardManager | null;
+    private launcherManager!: LauncherManager | null;
     private settings!: Gio.Settings | null;
     private settingsConnection!: number;
+    private launcherSettingsConnection!: number;
 
     enable() {
         logger("Vicinae extension enabled");
@@ -28,6 +31,10 @@ export default class Vicinae extends Extension {
             this.dbusManager = new DBusManager(this, this.clipboardManager);
             this.dbusManager.exportServices();
 
+            // Initialize launcher manager
+            logger("Extension: Initializing launcher manager...");
+            this.initializeLauncherManager();
+
             // Initialize UI indicator if enabled
             this.updateIndicatorVisibility();
 
@@ -36,6 +43,14 @@ export default class Vicinae extends Extension {
                 "changed::show-status-indicator",
                 () => {
                     this.updateIndicatorVisibility();
+                },
+            );
+
+            // Listen for launcher auto-close settings changes
+            this.launcherSettingsConnection = this.settings.connect(
+                "changed::launcher-auto-close-focus-loss",
+                () => {
+                    this.updateLauncherManager();
                 },
             );
 
@@ -77,14 +92,77 @@ export default class Vicinae extends Extension {
         }
     }
 
+    private initializeLauncherManager() {
+        if (!this.settings) return;
+
+        const autoClose = this.settings.get_boolean(
+            "launcher-auto-close-focus-loss",
+        );
+        const appClass =
+            this.settings.get_string("launcher-app-class") || "vicinae";
+
+        if (autoClose) {
+            this.launcherManager = new LauncherManager({
+                appClass: appClass,
+                autoCloseOnFocusLoss: autoClose,
+            });
+            this.launcherManager.enable();
+            logger("Launcher manager initialized and enabled");
+        }
+    }
+
+    private updateLauncherManager() {
+        if (!this.settings) return;
+
+        const autoClose = this.settings.get_boolean(
+            "launcher-auto-close-focus-loss",
+        );
+
+        if (autoClose && !this.launcherManager) {
+            // Enable launcher manager
+            this.initializeLauncherManager();
+        } else if (!autoClose && this.launcherManager) {
+            // Disable launcher manager
+            this.launcherManager.disable();
+            this.launcherManager = null;
+            logger("Launcher manager disabled");
+        } else if (autoClose && this.launcherManager) {
+            // Update existing launcher manager configuration
+            const appClass =
+                this.settings.get_string("launcher-app-class") || "vicinae";
+
+            // Log the actual app class being used
+            logger(
+                "initializeShellIntegrationManager: Using app class",
+                appClass,
+            );
+
+            this.launcherManager.updateConfig({
+                appClass: appClass,
+                autoCloseOnFocusLoss: autoClose,
+            });
+        }
+    }
+
     disable() {
         logger("Vicinae extension disabled");
 
         try {
-            // Disconnect settings listener
+            // Disconnect settings listeners
             if (this.settingsConnection) {
                 this.settings?.disconnect(this.settingsConnection);
                 this.settingsConnection = 0;
+            }
+
+            if (this.launcherSettingsConnection) {
+                this.settings?.disconnect(this.launcherSettingsConnection);
+                this.launcherSettingsConnection = 0;
+            }
+
+            // Clean up launcher manager
+            if (this.launcherManager) {
+                this.launcherManager.disable();
+                this.launcherManager = null;
             }
 
             // Clean up UI

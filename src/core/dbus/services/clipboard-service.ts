@@ -103,13 +103,17 @@ export class ClipboardService {
     // Method to start listening to clipboard changes (no-op since we start automatically)
     ListenToClipboardChanges(): void {
         try {
-            if (!this.isListening) {
+            if (!this.isListening && this.clipboardListener) {
                 logger("D-Bus: Starting clipboard listener...");
-                this.clipboardManager.onClipboardChange(this.clipboardListener!);
+                this.clipboardManager.onClipboardChange(this.clipboardListener);
                 this.isListening = true;
-                logger("📡 D-Bus clipboard listener activated via ListenToClipboardChanges");
-            } else {
+                logger(
+                    "📡 D-Bus clipboard listener activated via ListenToClipboardChanges",
+                );
+            } else if (this.isListening) {
                 logger("D-Bus: Clipboard listener already active");
+            } else {
+                logger("D-Bus: No clipboard listener available");
             }
         } catch (error) {
             logger("D-Bus: Error starting clipboard listener", error);

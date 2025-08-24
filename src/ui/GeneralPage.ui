@@ -30,6 +30,25 @@
     </child>
     <child>
       <object class="AdwPreferencesGroup">
+        <property name="title" translatable="true">Launcher Management</property>
+        <property name="description" translatable="true">Auto-close launcher when it loses focus</property>
+        <child>
+          <object class="AdwSwitchRow" id="launcherAutoCloseFocusLoss">
+            <property name="title" translatable="true">Auto-close on Focus Loss</property>
+            <property name="subtitle" translatable="true">Automatically close the launcher when it loses focus</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwEntryRow" id="launcherAppClass">
+            <property name="title" translatable="true">Application Class</property>
+            <property name="text">vicinae</property>
+            <property name="show-apply-button">true</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
         <property name="title" translatable="true">Debug Settings</property>
         <child>
           <object class="AdwComboRow" id="loggingLevel">
