@@ -1,6 +1,6 @@
 import Gio from "gi://Gio";
 
-const ICONS = ["smile"] as const;
+const ICONS = ["vicinae", "smile"] as const;
 type ICON = (typeof ICONS)[number];
 
 export class Icons {
@@ -8,9 +8,8 @@ export class Icons {
 
     constructor(extPath: string) {
         for (const name of ICONS) {
-            const icon = Gio.icon_new_for_string(
-                `${extPath}/assets/icons/${name}-symbolic.svg`,
-            );
+            const iconPath = `${extPath}/assets/icons/${name}-symbolic.svg`;
+            const icon = Gio.icon_new_for_string(iconPath);
             Icons.#icons.set(name, icon);
         }
     }

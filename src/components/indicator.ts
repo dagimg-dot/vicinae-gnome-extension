@@ -17,12 +17,12 @@ export class VicinaeIndicator {
     }
 
     private setupUI() {
-        // Initialize icons
         new Icons(this.extension.path);
 
-        // Create icon instead of text label
+        const vicinaeIcon = Icons.get("vicinae");
+
         const icon = new St.Icon({
-            gicon: Icons.get("smile"),
+            gicon: vicinaeIcon,
             style_class: "system-status-icon",
         });
 
@@ -30,7 +30,6 @@ export class VicinaeIndicator {
     }
 
     private setupMenu() {
-        // Add settings menu item
         const settingsItem = new PopupMenu.PopupMenuItem("Settings");
         settingsItem.connect("activate", () => {
             logger("Opening Vicinae settings");
