@@ -37,7 +37,7 @@ export class ClipboardService {
                 // We just need to emit the D-Bus signal for non-blocked events
 
                 // Emit D-Bus signal with comprehensive clipboard information
-                // Format: (sussssts) = string, uint32, string, string, string, string, uint64, string
+                // Format: (stsssstss) = string, uint64, string, string, string, string, uint64, string, string
                 logger(
                     `Debug: Emitting D-Bus signal for ${metadata.sourceApp} with data:`,
                     {
@@ -54,15 +54,15 @@ export class ClipboardService {
 
                 this.dbusObject?.emit_signal(
                     "ClipboardChanged",
-                    GLib.Variant.new("(sussssts)", [
-                        String(event.content), // Ensure string
-                        Number(event.timestamp), // Ensure uint32
-                        String(event.source), // Ensure string
-                        String(metadata.mimeType), // Ensure string
-                        String(metadata.contentType), // Ensure string
-                        String(metadata.contentHash), // Ensure string
-                        Number(metadata.size), // Ensure uint64
-                        String(metadata.sourceApp), // Ensure string
+                    GLib.Variant.new("(stssssts)", [
+                        String(event.content), // string
+                        Number(event.timestamp), // uint64 (timestamp can be large)
+                        String(event.source), // string
+                        String(metadata.mimeType), // string
+                        String(metadata.contentType), // string
+                        String(metadata.contentHash), // string
+                        Number(metadata.size), // uint64
+                        String(metadata.sourceApp), // string
                     ]),
                 );
 

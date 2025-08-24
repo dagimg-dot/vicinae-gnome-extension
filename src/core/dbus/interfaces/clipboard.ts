@@ -20,7 +20,7 @@ export const CLIPBOARD_DBUS_IFACE = `
       </method>
       <signal name="ClipboardChanged">
          <arg type="s" name="content" />
-         <arg type="u" name="timestamp" />
+         <arg type="t" name="timestamp" />
          <arg type="s" name="source" />
          <arg type="s" name="mimeType" />
          <arg type="s" name="contentType" />
