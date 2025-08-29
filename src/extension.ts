@@ -4,7 +4,7 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
-import { LauncherManager } from "./core/launcher/launcher-manager.js";
+import { LauncherManager } from "./core/windows/launcher-manager.js";
 import { logger } from "./utils/logger.js";
 
 export default class Vicinae extends Extension {
@@ -117,32 +117,30 @@ export default class Vicinae extends Extension {
         const autoClose = this.settings.get_boolean(
             "launcher-auto-close-focus-loss",
         );
-        const appClass =
-            this.settings.get_string("launcher-app-class") || "vicinae";
 
         if (autoClose && !this.launcherManager) {
             // Enable launcher manager
-            this.launcherManager = new LauncherManager({
-                appClass: appClass,
-                autoCloseOnFocusLoss: autoClose,
-            });
-            this.launcherManager.enable();
-            logger("Launcher manager enabled");
+            this.initializeLauncherManager();
         } else if (!autoClose && this.launcherManager) {
             // Disable launcher manager
             this.launcherManager.disable();
             this.launcherManager = null;
             logger("Launcher manager disabled");
         } else if (autoClose && this.launcherManager) {
-            // For the new implementation, we'll just recreate the launcher manager
-            // when settings change since it's lightweight
-            this.launcherManager.disable();
-            this.launcherManager = new LauncherManager({
+            // Update existing launcher manager configuration
+            const appClass =
+                this.settings.get_string("launcher-app-class") || "vicinae";
+
+            // Log the actual app class being used
+            logger(
+                "initializeShellIntegrationManager: Using app class",
+                appClass,
+            );
+
+            this.launcherManager.updateConfig({
                 appClass: appClass,
                 autoCloseOnFocusLoss: autoClose,
             });
-            this.launcherManager.enable();
-            logger("Launcher manager settings updated");
         }
     }
 
