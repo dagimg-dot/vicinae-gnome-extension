@@ -4,7 +4,7 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
-import { LauncherManager } from "./core/windows/launcher-manager.js";
+import { LauncherManager } from "./core/launcher/launcher-manager.js";
 import { logger } from "./utils/logger.js";
 
 export default class Vicinae extends Extension {
@@ -16,7 +16,7 @@ export default class Vicinae extends Extension {
     private settingsConnection!: number;
     private launcherSettingsConnection!: number;
 
-    enable() {
+    async enable() {
         logger("Vicinae extension enabled");
 
         try {
@@ -33,7 +33,7 @@ export default class Vicinae extends Extension {
 
             // Initialize launcher manager
             logger("Extension: Initializing launcher manager...");
-            this.initializeLauncherManager();
+            await this.initializeLauncherManager();
 
             // Initialize UI indicator if enabled
             this.updateIndicatorVisibility();
@@ -92,7 +92,7 @@ export default class Vicinae extends Extension {
         }
     }
 
-    private initializeLauncherManager() {
+    private async initializeLauncherManager() {
         if (!this.settings) return;
 
         const autoClose = this.settings.get_boolean(
@@ -106,12 +106,12 @@ export default class Vicinae extends Extension {
                 appClass: appClass,
                 autoCloseOnFocusLoss: autoClose,
             });
-            this.launcherManager.enable();
+            await this.launcherManager.enable();
             logger("Launcher manager initialized and enabled");
         }
     }
 
-    private updateLauncherManager() {
+    private async updateLauncherManager() {
         if (!this.settings) return;
 
         const autoClose = this.settings.get_boolean(
@@ -120,7 +120,7 @@ export default class Vicinae extends Extension {
 
         if (autoClose && !this.launcherManager) {
             // Enable launcher manager
-            this.initializeLauncherManager();
+            await this.initializeLauncherManager();
         } else if (!autoClose && this.launcherManager) {
             // Disable launcher manager
             this.launcherManager.disable();
