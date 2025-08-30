@@ -12,70 +12,122 @@
           <object class="GtkBox">
             <property name="orientation">1</property>
             <property name="halign">3</property>
-            <property name="margin-bottom">15</property>
+            <property name="spacing">24</property>
+            <property name="margin-top">24</property>
+            <property name="margin-bottom">32</property>
             <child>
-              <object class="GtkLabel" id="extensionName">
-                <property name="label">Vicinae</property>
-                <property name="margin-bottom">5</property>
-                <style>
-                  <class name="title-1"/>
-                </style>
+              <!-- App Icon -->
+              <object class="GtkImage" id="extensionIcon">
+                <property name="pixel-size">64</property>
+                <property name="halign">3</property>
               </object>
             </child>
             <child>
-              <object class="GtkLabel" id="extensionVersion">
-                <property name="label">0.1.0</property>
-                <style>
-                  <class name="caption"/>
-                </style>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="orientation">1</property>
-            <property name="halign">3</property>
-            <property name="margin-bottom">5</property>
-            <child>
-              <object class="GtkLabel" id="extensionDescription">
-                <property name="label">Gnome extension for vicinae launcher to expose clipboard and window managment APIs.</property>
-                <property name="justify">2</property>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="halign">3</property>
-            <child>
-              <object class="GtkLinkButton" id="linkGithub">
-                <property name="label" translatable="true" context="about link">Github</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLinkButton" id="linkIssues">
-                <property name="label" translatable="true" context="about link">Issue tracker</property>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="orientation">1</property>
-            <property name="vexpand">true</property>
-            <property name="hexpand">true</property>
-            <child>
-              <object class="GtkScrolledWindow">
-                <property name="margin-top">24</property>
-                <property name="vexpand">true</property>
-                <property name="hexpand">true</property>
+              <!-- App Name and Version -->
+              <object class="GtkBox">
+                <property name="orientation">1</property>
+                <property name="halign">3</property>
+                <property name="spacing">8</property>
                 <child>
-                  <object class="GtkTextView" id="extensionLicense">
-                    <property name="editable">false</property>
-                    <property name="cursor-visible">false</property>
-                    <property name="wrap-mode">2</property>
-                    <property name="justification">2</property>
+                  <object class="GtkLabel" id="extensionName">
+                    <property name="label">Vicinae</property>
+                    <property name="halign">3</property>
+                    <style>
+                      <class name="title-1"/>
+                    </style>
+                  </object>
+                </child>
+                                 <child>
+                   <object class="GtkLabel" id="extensionVersion">
+                     <property name="label">1.0.0</property>
+                     <property name="halign">3</property>
+                     <style>
+                       <class name="version-badge"/>
+                     </style>
+                   </object>
+                 </child>
+              </object>
+            </child>
+            <child>
+              <!-- Action Buttons -->
+              <object class="GtkBox">
+                <property name="orientation">1</property>
+                <property name="halign">3</property>
+                <property name="spacing">12</property>
+                <child>
+                  <object class="GtkButton" id="linkWebsite">
+                    <property name="label" translatable="true">Website</property>
+                    <property name="halign">3</property>
+                    <property name="width-request">200</property>
+                    <style>
+                      <class name="pill"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="linkIssues">
+                    <property name="label" translatable="true">Report an Issue</property>
+                    <property name="halign">3</property>
+                    <property name="width-request">200</property>
+                    <style>
+                      <class name="pill"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <!-- Credits Section -->
+      <object class="AdwPreferencesGroup">
+        <child>
+          <object class="AdwExpanderRow" id="creditsRow">
+            <property name="title" translatable="true">Credits</property>
+            <property name="subtitle" translatable="true">Contributors and acknowledgments</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Dagim G. Astatkie</property>
+                <property name="subtitle">Original Author</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <!-- Legal Section -->
+      <object class="AdwPreferencesGroup">
+        <child>
+          <object class="AdwExpanderRow" id="legalRow">
+            <property name="title" translatable="true">Legal</property>
+            <property name="subtitle" translatable="true">License and legal information</property>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">1</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <child>
+                  <object class="GtkScrolledWindow">
+                    <property name="vexpand">true</property>
+                    <property name="hexpand">true</property>
+                    <property name="min-content-height">200</property>
+                    <child>
+                      <object class="GtkTextView" id="extensionLicense">
+                        <property name="editable">false</property>
+                        <property name="cursor-visible">false</property>
+                        <property name="wrap-mode">2</property>
+                        <property name="justification">0</property>
+                        <property name="margin-top">12</property>
+                        <property name="margin-bottom">12</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

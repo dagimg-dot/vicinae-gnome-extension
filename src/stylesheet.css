@@ -1,0 +1,9 @@
+/* About Page Styles */
+.version-badge {
+  background-color: #2d7d32;
+  color: white;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-weight: 500;
+  font-size: 0.8em;
+}
