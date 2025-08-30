@@ -3,9 +3,13 @@
   "description": "Gnome extension for vicinae launcher to expose clipboard and window managment APIs.",
   "uuid": "vicinae@dagimg-dot",
   "original-author": "Dagim G. Astatkie",
-  "shell-version": ["46", "47", "48"],
+  "shell-version": [
+    "46",
+    "47",
+    "48"
+  ],
   "settings-schema": "org.gnome.shell.extensions.vicinae",
-  "version_name": "1.0.0",
-  "version": "1",
+  "version-name": "1.0.0",
+  "version": 1,
   "url": "https://github.com/dagimg-dot/vicinae-gnome-extension"
 }
