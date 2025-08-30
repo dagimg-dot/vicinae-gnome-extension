@@ -77,9 +77,6 @@ jobs:
           body: |
             ## ${{ steps.version.outputs.name }} ${{ steps.version.outputs.version_name }}
             
-            ### Changes
-            - Extension built and packaged for GNOME Shell ${{ steps.version.outputs.version }}
-            
             ### Installation
             1. Download the `.shell-extension.zip` file
             2. Install using: `gnome-extensions install --force <filename>`
