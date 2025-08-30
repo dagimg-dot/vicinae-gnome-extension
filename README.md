@@ -14,7 +14,12 @@
     </a>
   </p>
 
-Gnome extension for vicinae launcher to expose clipboard and window managment APIs.
+Gnome extension for [vicinae](https://github.com/vicinaehq/vicinae) launcher with features:
+
+- Expose clipboard events through dbus
+- Expose window managment APIs through dbus
+- Blocking specific applications from accessing the clipboard(like passwor)
+- Imitate the layer-shell protocol to create a floating detached launcher window
 
 ## Installation
 
@@ -22,6 +27,7 @@ Gnome extension for vicinae launcher to expose clipboard and window managment AP
 2. Install using: `gnome-extensions install --force <filename>`
 3. Enable the extension in GNOME Extensions app
 4. Restart GNOME Shell or log out/in
+5. Restart your vicinae server if it's running
 
 ## Development
 
@@ -35,10 +41,10 @@ Gnome extension for vicinae launcher to expose clipboard and window managment AP
 
 - Requirements: Bun, OpenSSH client
 - Useful scripts:
-  - `bun run format` → Format with Biome
-  - `bun run lint` → Lint with Biome (safe fixes)
-  - `bun run lint:fix` → Lint with unsafe fixes
-  - `bun run check` → Lint + format
+  - `bun format` → Format with Biome
+  - `bun lint` → Lint with Biome (safe fixes)
+  - `bun lint:fix` → Lint with unsafe fixes
+  - `bun check` → Lint + format
 
 Optional VM bootstrap (copies `scripts/dev-vicinae.sh`, installs sshfs on VM):
 
@@ -87,15 +93,18 @@ ssh user@vm-ip 'chmod +x ~/dev-vicinae.sh'
 ### Build, install, and reload (inside the VM)
 
 ```bash
-bun install
-bun run build:dev   # builds, installs, and unsafe-reloads GNOME Shell (Xorg only)
-bun run log         # view GNOME Shell logs
+bun build:install # builds and installs
+bun dev   # builds, installs, and unsafe-reloads GNOME Shell (Xorg only)
+bun dev:nested # builds, installs, and gives you nested wayland session with the extension loaded
+bun log         # view GNOME Shell logs that start with the extension name
+bun log:all     # view all GNOME Shell logs
 ```
 
 Notes
 - Build artifacts go to `build/` (gitignored).
 - `dist/` contains compiled JS when applicable.
 - Biome handles lint/format; `dist/` is ignored.
+
 ## License
 
 This software is distributed under MIT license. See the license file for details.
