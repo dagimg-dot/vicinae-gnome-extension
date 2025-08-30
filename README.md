@@ -1,5 +1,19 @@
 > # Vicinae Gnome Extension
 
+<p align="center">
+<img src="https://raw.githubusercontent.com/dagimg-dot/vicinae-gnome-extension/main/src/assets/icons/vicinae-symbolic.svg" alt="Vicinae" width="100">
+</p>
+
+<!-- download badge -->
+  <p align="center">
+    <a href="https://github.com/dagimg-dot/vicinae-gnome-extension/releases/latest">
+      <img src="https://img.shields.io/github/v/release/dagimg-dot/vicinae-gnome-extension?label=Download&style=for-the-badge" alt="Download">
+    </a>
+    <a href="https://github.com/dagimg-dot/vicinae-gnome-extension/releases">
+      <img src="https://img.shields.io/github/downloads/dagimg-dot/vicinae-gnome-extension/total?label=Downloads&style=for-the-badge" alt="Downloads">
+    </a>
+  </p>
+
 Gnome extension for vicinae launcher to expose clipboard and window managment APIs.
 
 ## Installation
