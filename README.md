@@ -2,6 +2,13 @@
 
 Gnome extension for vicinae launcher to expose clipboard and window managment APIs.
 
+## Installation
+
+1. Download the `.shell-extension.zip` from the [latest release](https://github.com/dagimg-dot/vicinae-gnome-extension/releases/latest)
+2. Install using: `gnome-extensions install --force <filename>`
+3. Enable the extension in GNOME Extensions app
+4. Restart GNOME Shell or log out/in
+
 ## Development
 
 ### Overview
