@@ -1,0 +1,94 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+      - name: Install dependencies
+        run: bun install
+        
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext libglib2.0-dev
+          
+      - name: Build extension
+        run: |
+          chmod +x scripts/build.sh
+          ./scripts/build.sh --build
+          
+      - name: Get version info
+        id: version
+        run: |
+          # Extract version from metadata.json
+          VERSION=$(node -p "require('./metadata.json').version")
+          VERSION_NAME=$(node -p "require('./metadata.json').version_name")
+          NAME=$(node -p "require('./metadata.json').name")
+          
+          # Create release name
+          RELEASE_NAME="${NAME}-${VERSION_NAME}"
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "name=${NAME}" >> $GITHUB_OUTPUT
+          echo "release_name=${RELEASE_NAME}" >> $GITHUB_OUTPUT
+          
+      - name: Find extension zip file
+        id: find-zip
+        run: |
+          # Find the built extension zip file
+          ZIP_FILE=$(find build/ -name "*.shell-extension.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Error: No extension zip file found in build directory"
+            exit 1
+          fi
+          
+          echo "zip_file=${ZIP_FILE}" >> $GITHUB_OUTPUT
+          echo "zip_name=$(basename ${ZIP_FILE})" >> $GITHUB_OUTPUT
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: ${{ steps.version.outputs.release_name }}
+          body: |
+            ## ${{ steps.version.outputs.name }} ${{ steps.version.outputs.version_name }}
+            
+            ### Changes
+            - Extension built and packaged for GNOME Shell ${{ steps.version.outputs.version }}
+            
+            ### Installation
+            1. Download the `.shell-extension.zip` file
+            2. Install using: `gnome-extensions install --force <filename>`
+            3. Enable the extension in GNOME Extensions app
+            4. Restart GNOME Shell or log out/in
+            
+            ### Build Info
+            - Built from commit: ${{ github.sha }}
+            - Build date: ${{ github.event.head_commit.timestamp }}
+          files: ${{ steps.find-zip.outputs.zip_file }}
+          draft: false
+          prerelease: false

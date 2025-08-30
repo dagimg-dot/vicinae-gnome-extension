@@ -5,6 +5,7 @@
   "original-author": "Dagim G. Astatkie",
   "shell-version": ["46", "47", "48"],
   "settings-schema": "org.gnome.shell.extensions.vicinae",
-  "version-name": "0.1.0",
+  "version_name": "1.0.0",
+  "version": "1",
   "url": "https://github.com/dagimg-dot/vicinae-gnome-extension"
 }

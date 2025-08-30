@@ -230,6 +230,10 @@ if [ $# -eq 0 ]; then
 	exit 0
 elif [ $# -eq 1 ]; then
 	case "$1" in
+		--build | -b)
+			build_extension_package
+			exit 0
+			;;
 		--install | -i)
 			build_extension_package
 			install_extension_package
