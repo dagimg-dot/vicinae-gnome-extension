@@ -47,7 +47,7 @@ jobs:
           NAME=$(node -p "require('./metadata.json').name")
 
           # Create release name
-          RELEASE_NAME="${NAME}-${VERSION_NAME}"
+          RELEASE_NAME="${NAME} v${VERSION_NAME}"
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "version-name=${VERSION_NAME}" >> $GITHUB_OUTPUT
@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
 
-          echo "zip_file=${ZIP_FILE}" >> $GITHUB_OUTPUT
+          echo "zip_file=${ZIP_FILE}-${VERSION_NAME}" >> $GITHUB_OUTPUT
           echo "zip_name=$(basename ${ZIP_FILE})" >> $GITHUB_OUTPUT
 
       - name: Create Release
@@ -78,8 +78,8 @@ jobs:
             ### Installation
             1. Download the `.shell-extension.zip` file
             2. Install using: `gnome-extensions install --force <filename>`
-            3. Enable the extension in GNOME Extensions app
-            4. Restart GNOME Shell or log out/in
+            3. Restart GNOME Shell or log out/in
+            4. Enable the extension in GNOME Extensions app
 
             ### Build Info
             - Built from commit: ${{ github.sha }}
