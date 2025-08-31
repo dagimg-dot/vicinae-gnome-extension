@@ -18,15 +18,15 @@ Gnome extension for [vicinae](https://github.com/vicinaehq/vicinae) launcher wit
 
 - Expose clipboard events through dbus
 - Expose window managment APIs through dbus
-- Blocking specific applications from accessing the clipboard(like passwor)
-- Imitate the layer-shell protocol to create a floating detached launcher window
+- Blocking specific applications from accessing the clipboard(like password managers)
+- Imitate the layer-shell protocol to create a detached floating launcher window which closes on focus loss and always centers itself on the current monitor
 
 ## Installation
 
 1. Download the `.shell-extension.zip` from the [latest release](https://github.com/dagimg-dot/vicinae-gnome-extension/releases/latest)
 2. Install using: `gnome-extensions install --force <filename>`
-3. Enable the extension in GNOME Extensions app
-4. Restart GNOME Shell or log out/in
+3. Restart GNOME Shell or log out/in
+4. Enable the extension in GNOME Extensions app
 5. Restart your vicinae server if it's running
 
 ## Development
