@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
 
-          echo "zip_file=${ZIP_FILE}-${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "zip_file=${ZIP_FILE}" >> $GITHUB_OUTPUT
           echo "zip_name=$(basename ${ZIP_FILE})" >> $GITHUB_OUTPUT
 
       - name: Create Release
