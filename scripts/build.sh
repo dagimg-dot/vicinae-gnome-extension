@@ -110,10 +110,10 @@ function build_extension_package() {
 
 	(
 		mkdir -p "$BUILD_DIR"
-		rm -f "$BUILD_DIR/$UUID".shell-extension.zip
+		rm -f "$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip"
 		# Place the gresource at the root of the archive while keeping the built file under build/
 		cp "$RESOURCE_TARGET" "$JS_DIR/"
-		cd "$JS_DIR" && zip -qr ../"$BUILD_DIR/$UUID".shell-extension.zip \
+		cd "$JS_DIR" && zip -qr "../$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip" \
 			. \
 			../metadata.json \
 			../LICENSE
@@ -166,7 +166,7 @@ function try_restarting_gnome_shell() {
 
 function install_extension_package() {
 	echo "Installing the extension..."
-	gnome-extensions install --force "$BUILD_DIR/$UUID".shell-extension.zip
+	gnome-extensions install --force "$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip"
 	echo "Extension installed."
 
 	if [ "$1" = "-r" ]; then
@@ -213,6 +213,7 @@ function usage() {
 cd -- "$( dirname "$0" )/../"
 
 UUID=$(grep -oP '"uuid": "\K[^"]+' metadata.json)
+VERSION=$(grep -oP '"version": "\K[^"]+' package.json)
 BUILD_DIR="build"
 RESOURCE_XML="$BUILD_DIR/$UUID.gresource.xml"
 RESOURCE_TARGET="$BUILD_DIR/$UUID.gresource"
