@@ -108,10 +108,14 @@ export class WindowTracker {
                     this.trackedWindows.add(windowId);
                     this.onWindowTracked(windowId);
 
+                    // Center the window after tracking
+                    this.centerWindow(window);
+
                     // Set up window destroy handler
                     const signalId = window.connect("destroy", () => {
                         this.handleWindowDestroyed(window);
                     });
+
                     this.windowDestroySignalIds.set(windowId, signalId);
 
                     logger(
@@ -185,5 +189,43 @@ export class WindowTracker {
 
     getTrackedWindowsCount(): number {
         return this.trackedWindows.size;
+    }
+
+    /**
+     * Centers a window on the current monitor
+     */
+    private centerWindow(window: Meta.Window): void {
+        try {
+            const { x, y } = this.getCenterPosition(window);
+
+            // Move the window to center position
+            window.move_frame(true, x, y);
+
+            logger(
+                `WindowTracker: Centered window ${window.get_id()} at (${Math.round(
+                    x,
+                )}, ${Math.round(y)})`,
+            );
+        } catch (error) {
+            logger("WindowTracker: Error centering window", error);
+        }
+    }
+
+    /**
+     * Gets the center position of a window
+     */
+    private getCenterPosition(window: Meta.Window): { x: number; y: number } {
+        const monitor = window.get_monitor();
+        const display = global.display;
+        const monitorGeometry = display.get_monitor_geometry(monitor);
+
+        const frame = window.get_frame_rect();
+
+        const centerX =
+            monitorGeometry.x + (monitorGeometry.width - frame.width) / 2;
+        const centerY =
+            monitorGeometry.y + (monitorGeometry.height - frame.height) / 2;
+
+        return { x: centerX, y: centerY };
     }
 }
