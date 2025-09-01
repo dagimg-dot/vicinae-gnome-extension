@@ -1,6 +1,18 @@
 export const getWindowById = (winid: number) => {
-    const windowActors = global.get_window_actors();
-    return windowActors.find((w) => w.meta_window.get_id() === winid);
+    if (!winid || winid <= 0) return null;
+
+    try {
+        const windowActors = global.get_window_actors();
+        return windowActors.find((w) => {
+            try {
+                return w.meta_window && w.meta_window.get_id() === winid;
+            } catch {
+                return false;
+            }
+        });
+    } catch (_error) {
+        return null;
+    }
 };
 
 export const getCurrentWorkspace = () => {

@@ -270,7 +270,19 @@ export class VicinaeWindowManager implements WindowManager {
     close(winid: number): void {
         const win = getWindowById(winid)?.meta_window;
         if (win) {
-            win.delete(getCurrentTime());
+            try {
+                // Check if window is still valid before attempting to close
+                if (win.get_id() === winid) {
+                    win.delete(getCurrentTime());
+                } else {
+                    throw new Error(
+                        "Window ID mismatch - window may be destroyed",
+                    );
+                }
+            } catch (error) {
+                // Window might be already destroyed or invalid
+                throw new Error(`Failed to close window ${winid}: ${error}`);
+            }
         } else {
             throw new Error("Window not found");
         }

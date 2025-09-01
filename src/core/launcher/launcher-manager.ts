@@ -7,6 +7,7 @@ import { WindowTracker } from "./window-tracker.js";
 
 declare const global: {
     display: Meta.Display;
+    get_window_actors: () => Meta.WindowActor[];
 };
 
 export interface LauncherConfig {
@@ -129,6 +130,7 @@ export class LauncherManager {
                     `LauncherManager: Error closing window ${windowId}`,
                     error,
                 );
+                // Don't re-throw to prevent cascading failures
             }
         });
     }
@@ -136,6 +138,22 @@ export class LauncherManager {
     private isValidWindowId(windowId: number): boolean {
         if (!windowId || windowId <= 0) return false;
         try {
+            // First check if window exists in the global window list
+            const windowActors = global.get_window_actors();
+            const windowExists = windowActors.some((actor) => {
+                try {
+                    return (
+                        actor.meta_window &&
+                        actor.meta_window.get_id() === windowId
+                    );
+                } catch {
+                    return false;
+                }
+            });
+
+            if (!windowExists) return false;
+
+            // Then try to get details to ensure it's accessible
             const details = this.windowManager.details(windowId);
             return details && details.id === windowId;
         } catch {
