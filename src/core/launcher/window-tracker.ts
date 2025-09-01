@@ -11,7 +11,7 @@ declare const global: {
 export class WindowTracker {
     private trackedWindows = new Set<number>();
     private windowCreatedHandler?: number;
-    private windowDestroySignalIds = new Map<number, number>();
+    private windowDestroySignalIds = new Map<number, number | undefined>();
     private windowValidators = new Map<number, () => boolean>();
     private isDestroying = false;
 
@@ -52,16 +52,18 @@ export class WindowTracker {
 
         // Safely disconnect all window destroy handlers
         for (const [windowId, signalId] of this.windowDestroySignalIds) {
-            try {
-                const window = this.getWindowById(windowId);
-                if (window && this.isWindowValid(window)) {
-                    window.disconnect(signalId);
+            if (signalId) {
+                try {
+                    const window = this.getWindowById(windowId);
+                    if (window && this.isWindowValid(window)) {
+                        window.disconnect(signalId);
+                    }
+                } catch (_error) {
+                    // Window might be already destroyed, which is expected
+                    logger(
+                        `WindowTracker: Signal already disconnected for window ${windowId}`,
+                    );
                 }
-            } catch (_error) {
-                // Window might be already destroyed, which is expected
-                logger(
-                    `WindowTracker: Signal already disconnected for window ${windowId}`,
-                );
             }
         }
 
@@ -127,11 +129,30 @@ export class WindowTracker {
                     this.centerWindow(window);
 
                     // Set up window destroy handler with safer approach
-                    const signalId = window.connect("destroy", () => {
-                        this.handleWindowDestroyed(window);
-                    });
+                    // Check if the window has the destroy signal (X11 vs Wayland)
+                    let signalId: number | undefined;
+                    try {
+                        // Try to connect to destroy signal first
+                        signalId = window.connect("destroy", () => {
+                            this.handleWindowDestroyed(window);
+                        });
+                    } catch (_error) {
+                        // If destroy signal doesn't exist, try unmanaged signal
+                        try {
+                            signalId = window.connect("unmanaged", () => {
+                                this.handleWindowDestroyed(window);
+                            });
+                        } catch (_unmanagedError) {
+                            // If neither signal exists, log and continue without signal tracking
+                            logger(
+                                `WindowTracker: No suitable destroy signal for window ${windowId}, skipping signal connection`,
+                            );
+                        }
+                    }
 
-                    this.windowDestroySignalIds.set(windowId, signalId);
+                    if (signalId) {
+                        this.windowDestroySignalIds.set(windowId, signalId);
+                    }
 
                     logger(
                         `WindowTracker: Tracking new window ${windowId} (${wmClass})`,
@@ -139,7 +160,11 @@ export class WindowTracker {
                 }
             }
         } catch (error) {
-            logger("WindowTracker: Error handling new window", error);
+            logger("WindowTracker: Error handling new window", {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                windowId: window?.get_id?.() || "unknown",
+            });
         }
     }
 
