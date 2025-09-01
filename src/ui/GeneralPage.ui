@@ -3,7 +3,7 @@
   <requires lib="gtk" version="4.0"/>
   <template class="TypescriptTemplateGeneralPage" parent="AdwPreferencesPage">
     <property name="title" translatable="true">General</property>
-    <property name="icon_name">dialog-information-symbolic</property>
+    <property name="icon_name">preferences-system-symbolic</property>
     <child>
       <object class="AdwPreferencesGroup" id="blockedAppsGroup">
         <property name="title" translatable="true">Blocked Applications</property>

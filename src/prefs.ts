@@ -593,7 +593,7 @@ const AboutPage = GObject.registerClass(
 
             children._extensionName.set_text(metadata.name);
             children._extensionVersion.set_text(
-                `${metadata["version-name"] || metadata.version}`,
+                `v${metadata["version-name"] || metadata.version}`,
             );
 
             if (metadata.url) {
