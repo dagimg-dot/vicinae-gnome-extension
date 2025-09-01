@@ -58,9 +58,11 @@ jobs:
         id: find-zip
         run: |
           # Find the built extension zip file
-          ZIP_FILE=$(find build/ -name "*.shell-extension.zip" | head -n 1)
+          ZIP_FILE=$(find build/ -name "*.shell-extension-v*.zip" | head -n 1)
           if [ -z "$ZIP_FILE" ]; then
             echo "Error: No extension zip file found in build directory"
+            echo "Available files in build directory:"
+            ls -la build/ || echo "Build directory does not exist"
             exit 1
           fi
 
