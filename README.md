@@ -1,11 +1,13 @@
-> # Vicinae Gnome Extension
+<div align="center" style="margin-bottom: 40px;">
+  <h1>Vicinae Gnome Extension</h1>
+</div>
 
-<p align="center">
+<p align="center" style="margin-bottom: 30px;">
 <img src="https://raw.githubusercontent.com/dagimg-dot/vicinae-gnome-extension/main/src/assets/icons/vicinae-symbolic.svg" alt="Vicinae" width="100">
 </p>
 
 <!-- download badge -->
-  <p align="center">
+  <p align="center" style="margin-bottom: 30px;">
     <a href="https://github.com/dagimg-dot/vicinae-gnome-extension/releases/latest">
       <img src="https://img.shields.io/github/v/release/dagimg-dot/vicinae-gnome-extension?label=Download&style=for-the-badge" alt="Download">
     </a>
@@ -14,12 +16,12 @@
     </a>
   </p>
 
-Gnome extension for [vicinae](https://github.com/vicinaehq/vicinae) launcher with features:
+✨ **Vicinae GNOME Extension** ✨ - Supercharge your [Vicinae](https://github.com/vicinaehq/vicinae) launcher experience with these awesome features:
 
-- Expose clipboard events through dbus
-- Expose window managment APIs through dbus
-- Blocking specific applications from accessing the clipboard(like password managers)
-- Imitate the layer-shell protocol to create a detached floating launcher window which closes on focus loss and always centers itself on the current monitor
+- 📋 Seamlessly expose clipboard events through DBus
+- 🖼️ Powerful window management APIs via DBus
+- 🔒 Protect sensitive apps (like password managers) by blocking clipboard access
+- 🪟 Smart launcher window that mimics layer-shell protocol: auto-centers, stays on top, and gracefully closes when you click away
 
 ## Installation
 
@@ -33,77 +35,129 @@ Gnome extension for [vicinae](https://github.com/vicinaehq/vicinae) launcher wit
 
 ### Overview
 
-- Edit code on the host machine.
-- Test the extension in a Fedora 41 VM using GNOME on Xorg (for unsafe reload).
-- Share the project folder into the VM via SSHFS and run dev commands inside the VM.
+This extension uses a TypeScript-based development workflow with automated build scripts. The recommended setup involves:
 
-### Host machine
+- **Host machine**: Edit code, run linting/formatting
+- **VM environment**: Test the extension in a controlled GNOME environment
+- **Automated scripts**: Handle building, installation, and development workflow
 
-- Requirements: Bun, OpenSSH client
-- Useful scripts:
-  - `bun format` → Format with Biome
-  - `bun lint` → Lint with Biome (safe fixes)
-  - `bun lint:fix` → Lint with unsafe fixes
-  - `bun check` → Lint + format
+### Prerequisites
 
-Optional VM bootstrap (copies `scripts/dev-vicinae.sh`, installs sshfs on VM):
+- **Host**: Bun, OpenSSH client
+- **VM**: Fedora 41 with GNOME on Xorg (for unsafe reload support)
 
+### Development Scripts
+
+The project includes several automation scripts in the `scripts/` directory:
+
+#### `scripts/build.sh` - Build and Package
+Handles the complete build process:
+- Compiles TypeScript files using esbuild
+- Compiles GResource files and translations
+- Creates the `.shell-extension.zip` package
+- Supports installation and unsafe reload options
+
+**Usage:**
 ```bash
-# Run the script itself
+./scripts/build.sh              # Build only
+./scripts/build.sh --install    # Build and install
+./scripts/build.sh --unsafe-reload  # Build, install, and reload GNOME Shell
+```
+
+#### `scripts/log.sh` - Log Monitoring
+Monitors GNOME Shell logs for debugging:
+- Captures logs from both `gnome-shell` and `gjs` processes
+- Supports filtered output showing only extension-related logs
+- Automatically extracts extension name from `metadata.json`
+
+**Usage:**
+```bash
+./scripts/log.sh        # All logs
+./scripts/log.sh -f     # Filtered logs (extension + errors only)
+```
+
+#### `scripts/setup-vm.sh` - VM Bootstrap
+Automates VM setup for development:
+- Copies `dev-vicinae.sh` to the VM
+- Installs `sshfs` and creates mount points
+- Sets up proper permissions
+
+**Usage:**
+```bash
 ./scripts/setup-vm.sh user@vm-ip
-
-# Run the bun script
-bun setup user@vm-ip
 ```
 
-### VM (Fedora 41)
+#### `scripts/dev-vicinae.sh` - Development Environment
+Sets up the development environment inside the VM:
+- Mounts the host project directory via SSHFS
+- Changes to the project directory
+- Provides an interactive shell
 
-- At login, choose “GNOME on Xorg”.
-- Enable Unsafe mode: Alt+F2 → `lg` → settings → enable Unsafe mode.
-- Install tools:
-
+**Usage:**
 ```bash
-# This is already automated in the setup script
-sudo dnf install -y fuse-sshfs gnome-extensions-app
+~/dev-vicinae.sh  # Run inside the VM
 ```
 
-- Install `bun` separately:
+### Development Workflow
+
+#### 1. Host Machine Setup
+
+**Code Quality Tools:**
 ```bash
-curl -fsSL https://bun.sh/install | bash
+bun format      # Format code with Biome
+bun lint        # Lint with safe fixes
+bun lint:fix    # Lint with unsafe fixes  
+bun check       # Combined lint + format
 ```
 
-### Share the project via SSHFS (already automated in the setup script)
+#### 2. VM Environment Setup
 
-Use `scripts/dev-vicinae.sh` inside the VM. It mounts the host project to `/mnt/host/vicinae-gnome-extension`, cds there, and drops you into a shell.
+**Initial VM Configuration:**
+1. Choose "GNOME on Xorg" at login
+2. Enable Unsafe mode: `Alt+F2` → `lg` → settings → enable Unsafe mode
+2. Install required tools (automated by setup script):
+   ```bash
+   sudo dnf install -y fuse-sshfs gnome-extensions-app
+   ```
+3. Install Bun:
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   ```
 
-1) In `scripts/dev-vicinae.sh`, set `HOST_SPEC` to your host user/IP and project path.
-2) Copy to VM (or use `setup-vm.sh`):
+#### 3. Development Commands (Run in VM)
 
+**Bootstrap VM environment on Host:**
 ```bash
-scp scripts/dev-vicinae.sh user@vm-ip:~/dev-vicinae.sh
-ssh user@vm-ip 'chmod +x ~/dev-vicinae.sh'
+bun setup user@vm-ip  # Bootstrap VM environment
 ```
 
-3) On the VM:
-
+**Build and Install:**
 ```bash
-~/dev-vicinae.sh
+bun build:install    # Build and install extension
+bun dev             # Build, install, and unsafe-reload (Xorg only)
+bun dev:nested      # Build, install, and start nested Wayland session
 ```
 
-### Build, install, and reload (inside the VM)
-
+**Debugging:**
 ```bash
-bun build:install # builds and installs
-bun dev   # builds, installs, and unsafe-reloads GNOME Shell (Xorg only)
-bun dev:nested # builds, installs, and gives you nested wayland session with the extension loaded
-bun log         # view GNOME Shell logs that start with the extension name
-bun log:all     # view all GNOME Shell logs
+bun log             # Monitor extension logs (filtered)
+bun log:all         # Monitor all GNOME Shell logs
 ```
 
-Notes
-- Build artifacts go to `build/` (gitignored).
-- `dist/` contains compiled JS when applicable.
-- Biome handles lint/format; `dist/` is ignored.
+### Project Structure
+
+- **`src/`**: TypeScript source files
+- **`dist/`**: Compiled JavaScript (auto-generated)
+- **`build/`**: Build artifacts and packages (gitignored)
+- **`scripts/`**: Development automation scripts
+- **`data/`**: Static resources (icons, UI files)
+
+### Notes
+
+- Build artifacts are automatically placed in `build/` directory
+- The `dist/` directory contains compiled JavaScript when using TypeScript
+- Biome handles all linting and formatting; `dist/` is gitignored
+- Unsafe reload only works on Xorg sessions, not Wayland using the [Unsafe Mode Extension](https://github.com/linushdot/unsafe-mode-menu)
 
 ## License
 
