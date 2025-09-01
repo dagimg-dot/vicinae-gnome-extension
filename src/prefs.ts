@@ -7,7 +7,7 @@ import Gtk from "gi://Gtk";
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 import type { ExtensionMetadata } from "@girs/gnome-shell/extensions/extension";
 
-import { logger } from "./utils/logger.js";
+import { debug, error as logError } from "./utils/logger.js";
 
 const LICENSE = `MIT License
 
@@ -242,7 +242,7 @@ const GeneralPage = GObject.registerClass(
 
         bindSettings(settings: Gio.Settings) {
             this.settings = settings;
-            logger("Settings bound to GeneralPage");
+            debug("Settings bound to GeneralPage");
 
             this.loadBlockedApplications();
             this.updateAddButtonState(); // Initial state
@@ -327,7 +327,7 @@ const GeneralPage = GObject.registerClass(
                     this.addBlockedAppRow(windowClass);
                 });
             } catch (error) {
-                logger("Error loading blocked applications", error);
+                logError("Error loading blocked applications", error);
             }
         }
 
@@ -478,7 +478,7 @@ const GeneralPage = GObject.registerClass(
                 }
                 this.blockedAppRows.set(newClass, row);
             } catch (error) {
-                logger("Error updating blocked app in settings", error);
+                logError("Error updating blocked app in settings", error);
             }
         }
 
@@ -508,7 +508,7 @@ const GeneralPage = GObject.registerClass(
                 // Update our internal tracking
                 this.blockedAppRows.delete(oldClass);
             } catch (error) {
-                logger("Error removing blocked app from settings", error);
+                logError("Error removing blocked app from settings", error);
             }
         }
 

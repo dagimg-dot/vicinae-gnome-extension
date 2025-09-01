@@ -3,7 +3,7 @@ import type { Extension } from "resource:///org/gnome/shell/extensions/extension
 import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 import { Icons } from "../lib/icons.js";
-import { logger } from "../utils/logger.js";
+import { debug } from "../utils/logger.js";
 
 export class VicinaeIndicator {
     private indicator: PanelMenu.Button;
@@ -32,7 +32,7 @@ export class VicinaeIndicator {
     private setupMenu() {
         const settingsItem = new PopupMenu.PopupMenuItem("Settings");
         settingsItem.connect("activate", () => {
-            logger("Opening Vicinae settings");
+            debug("Opening Vicinae settings");
             this.extension.openPreferences();
         });
 

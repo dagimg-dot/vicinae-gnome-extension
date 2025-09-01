@@ -1,5 +1,5 @@
 import type Meta from "gi://Meta";
-import { logger } from "../../utils/logger.js";
+import { debug, info, error as logError, warn } from "../../utils/logger.js";
 import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
@@ -38,7 +38,7 @@ export class LauncherManager {
 
     async enable() {
         if (this.isEnabled) {
-            logger("LauncherManager: Already enabled, skipping");
+            debug("LauncherManager: Already enabled, skipping");
             return;
         }
 
@@ -51,9 +51,9 @@ export class LauncherManager {
             }
 
             this.isEnabled = true;
-            logger("LauncherManager: Successfully enabled");
+            info("LauncherManager: Successfully enabled");
         } catch (error) {
-            logger("LauncherManager: Error during enable", error);
+            logError("LauncherManager: Error during enable", error);
             this.cleanup();
             throw error;
         }
@@ -61,16 +61,16 @@ export class LauncherManager {
 
     private handleWindowTracked(windowId: number) {
         this.trackedWindows.add(windowId);
-        logger(`LauncherManager: Window ${windowId} is now tracked`);
+        debug(`LauncherManager: Window ${windowId} is now tracked`);
     }
 
     private handleWindowUntracked(windowId: number) {
         this.trackedWindows.delete(windowId);
-        logger(`LauncherManager: Window ${windowId} is no longer tracked`);
+        debug(`LauncherManager: Window ${windowId} is no longer tracked`);
     }
 
     disable() {
-        logger("LauncherManager: Disabling");
+        info("LauncherManager: Disabling");
         this.isEnabled = false;
         this.cleanup();
     }
@@ -106,7 +106,7 @@ export class LauncherManager {
     private closeTrackedWindows() {
         if (this.trackedWindows.size === 0) return;
 
-        logger(
+        debug(
             `LauncherManager: Closing ${this.trackedWindows.size} launcher windows due to focus loss`,
         );
 
@@ -117,16 +117,16 @@ export class LauncherManager {
             try {
                 if (this.isValidWindowId(windowId)) {
                     this.windowManager.close(windowId);
-                    logger(
+                    debug(
                         `LauncherManager: Successfully closed window ${windowId}`,
                     );
                 } else {
-                    logger(
+                    debug(
                         `LauncherManager: Window ${windowId} no longer valid, skipping close`,
                     );
                 }
             } catch (error) {
-                logger(
+                logError(
                     `LauncherManager: Error closing window ${windowId}`,
                     error,
                 );
@@ -168,13 +168,13 @@ export class LauncherManager {
             this.clickHandler?.disable();
             this.trackedWindows.clear();
         } catch (error) {
-            logger("LauncherManager: Error during cleanup", error);
+            logError("LauncherManager: Error during cleanup", error);
         }
     }
 
     // Recovery method for error situations
     recover() {
-        logger("LauncherManager: Attempting recovery from errors");
+        warn("LauncherManager: Attempting recovery from errors");
 
         try {
             this.cleanup();
@@ -185,9 +185,9 @@ export class LauncherManager {
                 this.enable();
             }, 500);
 
-            logger("LauncherManager: Recovery initiated");
+            info("LauncherManager: Recovery initiated");
         } catch (error) {
-            logger("LauncherManager: Recovery failed", error);
+            logError("LauncherManager: Recovery failed", error);
         }
     }
 
@@ -196,14 +196,14 @@ export class LauncherManager {
         const oldConfig = { ...this.config };
         this.config = { ...this.config, ...newConfig };
 
-        logger("LauncherManager: Configuration updated", {
+        debug("LauncherManager: Configuration updated", {
             old: oldConfig,
             new: this.config,
         });
 
         // Re-enable if currently enabled to apply new config
         if (this.isEnabled) {
-            logger("LauncherManager: Re-enabling with new configuration");
+            info("LauncherManager: Re-enabling with new configuration");
             this.disable();
             setTimeout(() => this.enable(), 100);
         }
@@ -226,7 +226,7 @@ export class LauncherManager {
 
     // Force refresh of tracked windows
     refresh() {
-        logger("LauncherManager: Refreshing tracked windows");
+        debug("LauncherManager: Refreshing tracked windows");
         this.trackedWindows.clear();
         // The WindowTracker will automatically pick up existing windows
     }

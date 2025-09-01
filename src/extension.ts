@@ -5,7 +5,12 @@ import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
-import { logger } from "./utils/logger.js";
+import {
+    debug,
+    info,
+    initializeLogger,
+    error as logError,
+} from "./utils/logger.js";
 
 export default class Vicinae extends Extension {
     private indicator!: VicinaeIndicator | null;
@@ -17,11 +22,14 @@ export default class Vicinae extends Extension {
     private launcherSettingsConnection!: number;
 
     async enable() {
-        logger("Vicinae extension enabled");
+        info("Vicinae extension enabled");
 
         try {
             // Initialize settings
             this.settings = this.getSettings();
+
+            // Initialize logger with settings
+            initializeLogger(this.settings);
 
             // Initialize clipboard manager with settings
             this.clipboardManager = new VicinaeClipboardManager();
@@ -32,7 +40,7 @@ export default class Vicinae extends Extension {
             this.dbusManager.exportServices();
 
             // Initialize launcher manager
-            logger("Extension: Initializing launcher manager...");
+            debug("Extension: Initializing launcher manager...");
             await this.initializeLauncherManager();
 
             // Initialize UI indicator if enabled
@@ -58,15 +66,15 @@ export default class Vicinae extends Extension {
             this.settings.connect("changed::blocked-applications", () => {
                 if (this.clipboardManager && this.settings) {
                     this.clipboardManager.updateSettings(this.settings);
-                    logger(
+                    debug(
                         "Updated clipboard manager with new blocked applications list",
                     );
                 }
             });
 
-            logger("Vicinae extension initialized successfully");
+            info("Vicinae extension initialized successfully");
         } catch (error) {
-            logger("Failed to initialize Vicinae extension", error);
+            logError("Failed to initialize Vicinae extension", error as Error);
             throw error;
         }
     }
@@ -83,12 +91,12 @@ export default class Vicinae extends Extension {
                 0,
                 "right",
             );
-            logger("Vicinae indicator shown");
+            debug("Vicinae indicator shown");
         } else if (!shouldShow && this.indicator) {
             // Hide and destroy indicator
             this.indicator.destroy();
             this.indicator = null;
-            logger("Vicinae indicator hidden");
+            debug("Vicinae indicator hidden");
         }
     }
 
@@ -107,7 +115,7 @@ export default class Vicinae extends Extension {
                 autoCloseOnFocusLoss: autoClose,
             });
             await this.launcherManager.enable();
-            logger("Launcher manager initialized and enabled");
+            info("Launcher manager initialized and enabled");
         }
     }
 
@@ -125,14 +133,14 @@ export default class Vicinae extends Extension {
             // Disable launcher manager
             this.launcherManager.disable();
             this.launcherManager = null;
-            logger("Launcher manager disabled");
+            debug("Launcher manager disabled");
         } else if (autoClose && this.launcherManager) {
             // Update existing launcher manager configuration
             const appClass =
                 this.settings.get_string("launcher-app-class") || "vicinae";
 
             // Log the actual app class being used
-            logger(
+            debug(
                 "initializeShellIntegrationManager: Using app class",
                 appClass,
             );
@@ -145,7 +153,7 @@ export default class Vicinae extends Extension {
     }
 
     disable() {
-        logger("Vicinae extension disabled");
+        info("Vicinae extension disabled");
 
         try {
             // Disconnect settings listeners
@@ -186,9 +194,9 @@ export default class Vicinae extends Extension {
             // Clean up settings
             this.settings = null;
 
-            logger("Vicinae extension cleaned up successfully");
+            info("Vicinae extension cleaned up successfully");
         } catch (error) {
-            logger("Error during extension cleanup", error);
+            logError("Error during extension cleanup", error);
         }
     }
 }

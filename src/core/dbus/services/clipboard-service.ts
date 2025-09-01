@@ -3,7 +3,7 @@ import GLib from "gi://GLib";
 import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import type { VicinaeClipboardManager } from "../../../core/clipboard/clipboard-manager.js";
 import { calculateClipboardMetadata } from "../../../utils/clipboard-utils.js";
-import { logger } from "../../../utils/logger.js";
+import { debug, info, error as logError, warn } from "../../../utils/logger.js";
 import type { ClipboardEvent } from "../../clipboard/types.js";
 
 export class ClipboardService {
@@ -19,7 +19,7 @@ export class ClipboardService {
         // Use the provided clipboard manager instead of creating a new one
         this.clipboardManager = clipboardManager;
 
-        logger("ClipboardService initialized with shared clipboard manager");
+        info("ClipboardService initialized with shared clipboard manager");
 
         // Start listening to clipboard changes immediately
         // Note: We'll need to set the DBus object first, so we'll do this in setDBusObject
@@ -38,8 +38,8 @@ export class ClipboardService {
 
                 // Emit D-Bus signal with comprehensive clipboard information
                 // Format: (stsssstss) = string, uint64, string, string, string, string, uint64, string, string
-                logger(
-                    `Debug: Emitting D-Bus signal for ${metadata.sourceApp} with data:`,
+                debug(
+                    `Emitting D-Bus signal for ${metadata.sourceApp} with data:`,
                     {
                         content: `${event.content.substring(0, 50)}...`,
                         timestamp: event.timestamp,
@@ -66,9 +66,9 @@ export class ClipboardService {
                     ]),
                 );
 
-                logger(`D-Bus signal emitted for ${metadata.sourceApp}`);
+                debug(`D-Bus signal emitted for ${metadata.sourceApp}`);
             } catch (signalError) {
-                logger("Error emitting D-Bus clipboard signal", {
+                logError("Error emitting D-Bus clipboard signal", {
                     error: signalError,
                     errorType: typeof signalError,
                     errorMessage:
@@ -97,26 +97,26 @@ export class ClipboardService {
         this.clipboardManager.onClipboardChange(this.clipboardListener);
         this.isListening = true;
 
-        logger("📡 D-Bus clipboard listener activated");
+        info("📡 D-Bus clipboard listener activated");
     }
 
     // Method to start listening to clipboard changes (no-op since we start automatically)
     ListenToClipboardChanges(): void {
         try {
             if (!this.isListening && this.clipboardListener) {
-                logger("D-Bus: Starting clipboard listener...");
+                debug("D-Bus: Starting clipboard listener...");
                 this.clipboardManager.onClipboardChange(this.clipboardListener);
                 this.isListening = true;
-                logger(
+                info(
                     "📡 D-Bus clipboard listener activated via ListenToClipboardChanges",
                 );
             } else if (this.isListening) {
-                logger("D-Bus: Clipboard listener already active");
+                debug("D-Bus: Clipboard listener already active");
             } else {
-                logger("D-Bus: No clipboard listener available");
+                warn("D-Bus: No clipboard listener available");
             }
         } catch (error) {
-            logger("D-Bus: Error starting clipboard listener", error);
+            logError("D-Bus: Error starting clipboard listener", error);
             throw error;
         }
     }
@@ -129,7 +129,7 @@ export class ClipboardService {
                 source as "user" | "system",
             );
         } catch (error) {
-            logger("D-Bus: Error triggering clipboard change", error);
+            logError("D-Bus: Error triggering clipboard change", error);
             throw error;
         }
     }
@@ -140,7 +140,7 @@ export class ClipboardService {
             const content = this.clipboardManager.getCurrentContent();
             return content;
         } catch (error) {
-            logger("D-Bus: Error getting current clipboard content", error);
+            logError("D-Bus: Error getting current clipboard content", error);
             throw error;
         }
     }
@@ -151,7 +151,7 @@ export class ClipboardService {
             // This actually sets the system clipboard content
             this.clipboardManager.setContent(content);
         } catch (error) {
-            logger("D-Bus: Error setting clipboard content", error);
+            logError("D-Bus: Error setting clipboard content", error);
             throw error;
         }
     }
@@ -171,7 +171,7 @@ export class ClipboardService {
                 "application/x-vicinae-concealed",
             ];
         } catch (error) {
-            logger("D-Bus: Error getting clipboard MIME types", error);
+            logError("D-Bus: Error getting clipboard MIME types", error);
             return [];
         }
     }
@@ -185,10 +185,10 @@ export class ClipboardService {
                 );
                 this.clipboardListener = null;
                 this.isListening = false;
-                logger("🔕 D-Bus clipboard listener deactivated");
+                info("🔕 D-Bus clipboard listener deactivated");
             }
         } catch (error) {
-            logger("Error stopping clipboard listener", error);
+            logError("Error stopping clipboard listener", error);
         }
     }
 

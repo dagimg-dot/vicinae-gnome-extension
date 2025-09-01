@@ -5,7 +5,7 @@ import {
     exportDBusService,
     unexportDBusService,
 } from "../../utils/dbus-utils.js";
-import { logger } from "../../utils/logger.js";
+import { info } from "../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import { CLIPBOARD_DBUS_IFACE } from "./interfaces/clipboard.js";
 import { WINDOWS_DBUS_IFACE } from "./interfaces/windows.js";
@@ -58,9 +58,9 @@ export class DBusManager {
                 "/org/gnome/Shell/Extensions/Windows",
             );
 
-            logger("D-Bus services exported successfully");
+            info("D-Bus services exported successfully");
         } catch (error) {
-            logger("Failed to export D-Bus services", error);
+            error("Failed to export D-Bus services", error);
             throw error;
         }
     }
@@ -73,9 +73,9 @@ export class DBusManager {
             unexportDBusService(this.clipboardService);
             unexportDBusService(this.windowsService);
 
-            logger("D-Bus services unexported successfully");
+            info("D-Bus services unexported successfully");
         } catch (error) {
-            logger("Failed to unexport D-Bus services", error);
+            error("Failed to unexport D-Bus services", error);
             throw error;
         }
     }

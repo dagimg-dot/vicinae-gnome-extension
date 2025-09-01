@@ -1,5 +1,4 @@
 import type { BufferLike } from "../core/clipboard/types.js";
-import { logger } from "./logger.js";
 import { getFocusedWindowApp } from "./window-utils.js";
 
 /**
@@ -42,7 +41,7 @@ export function uint8ArrayToBase64(uint8Array: Uint8Array): string {
 
         return result;
     } catch (error) {
-        logger("Error in direct base64 conversion", error);
+        error("Error in direct base64 conversion", error);
         throw error;
     }
 }
@@ -80,7 +79,7 @@ export function uint8ArrayToBase64Fallback(uint8Array: Uint8Array): string {
 
         return base64Result;
     } catch (error) {
-        logger("Error in fallback base64 conversion", error);
+        error("Error in fallback base64 conversion", error);
         throw error;
     }
 }
@@ -146,7 +145,7 @@ export function bufferToBase64(
             }
         }
     } catch (error) {
-        logger("Error converting buffer to base64", error);
+        error("Error converting buffer to base64", error);
         return "";
     }
 }

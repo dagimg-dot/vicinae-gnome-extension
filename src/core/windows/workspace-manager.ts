@@ -1,4 +1,4 @@
-import { logger } from "../../utils/logger.js";
+import { error as logError } from "../../utils/logger.js";
 
 export class WorkspaceManager {
     getWorkspaceCount(): number {
@@ -6,7 +6,7 @@ export class WorkspaceManager {
             const workspaceManager = global.workspace_manager;
             return workspaceManager.get_n_workspaces();
         } catch (error) {
-            logger("Error getting workspace count", error);
+            logError("Error getting workspace count", error);
             return 0;
         }
     }
@@ -17,7 +17,7 @@ export class WorkspaceManager {
             const currentWorkspace = workspaceManager.get_active_workspace();
             return currentWorkspace.index();
         } catch (error) {
-            logger("Error getting current workspace index", error);
+            logError("Error getting current workspace index", error);
             return 0;
         }
     }
@@ -27,7 +27,7 @@ export class WorkspaceManager {
             const workspaceManager = global.workspace_manager;
             return workspaceManager.get_workspace_by_index(index);
         } catch (error) {
-            logger("Error getting workspace by index", error);
+            logError("Error getting workspace by index", error);
             return null;
         }
     }
@@ -39,7 +39,7 @@ export class WorkspaceManager {
                 workspace.activate(global.get_current_time());
             }
         } catch (error) {
-            logger("Error switching to workspace", error);
+            logError("Error switching to workspace", error);
             throw error;
         }
     }
@@ -59,7 +59,7 @@ export class WorkspaceManager {
             }
             return null;
         } catch (error) {
-            logger("Error getting workspace info", error);
+            logError("Error getting workspace info", error);
             return null;
         }
     }
@@ -78,7 +78,7 @@ export class WorkspaceManager {
 
             return workspaces;
         } catch (error) {
-            logger("Error getting all workspaces", error);
+            logError("Error getting all workspaces", error);
             return [];
         }
     }
