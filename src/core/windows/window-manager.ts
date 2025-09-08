@@ -5,7 +5,9 @@ import type {
     FrameRect,
     WindowInfo,
     WindowManager,
+    WorkspaceInfo,
 } from "./types.js";
+import { WorkspaceManager } from "./workspace-manager.js";
 
 // The GJS type definitions are sometimes incomplete or don't export all types.
 // We define our own interfaces here for type safety.
@@ -286,5 +288,20 @@ export class VicinaeWindowManager implements WindowManager {
         } else {
             throw new Error("Window not found");
         }
+    }
+
+    listWorkspaces(): WorkspaceInfo[] {
+        const workspaceManager = new WorkspaceManager();
+        return workspaceManager.getAllWorkspaces();
+    }
+
+    getActiveWorkspace(): WorkspaceInfo {
+        const workspaceManager = new WorkspaceManager();
+        const currentIndex = workspaceManager.getCurrentWorkspaceIndex();
+        const workspace = workspaceManager.getWorkspaceInfo(currentIndex);
+        if (!workspace) {
+            throw new Error("No active workspace found");
+        }
+        return workspace;
     }
 }

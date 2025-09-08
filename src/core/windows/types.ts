@@ -23,6 +23,16 @@ export interface WindowInfo {
     moveable: boolean;
     resizeable: boolean;
     has_focus: boolean;
+    workspace: number;
+}
+
+export interface WorkspaceInfo {
+    index: number;
+    name: string;
+    isActive: boolean;
+    windowCount: number;
+    monitor: number;
+    hasfullscreen: boolean;
 }
 
 export interface FrameRect {
@@ -58,4 +68,6 @@ export interface WindowManager {
     unminimize(winid: number): void;
     activate(winid: number): void;
     close(winid: number): void;
+    listWorkspaces(): WorkspaceInfo[];
+    getActiveWorkspace(): WorkspaceInfo;
 }

@@ -152,4 +152,37 @@ export class WindowsService {
             throw error;
         }
     }
+
+    ListWorkspaces(): string {
+        try {
+            const workspaces = this.windowManager.listWorkspaces();
+            return JSON.stringify(workspaces);
+        } catch (error) {
+            logError("D-Bus: Error listing workspaces", error);
+            throw error;
+        }
+    }
+
+    GetActiveWorkspace(): string {
+        try {
+            const workspace = this.windowManager.getActiveWorkspace();
+            return JSON.stringify(workspace);
+        } catch (error) {
+            logError("D-Bus: Error getting active workspace", error);
+            throw error;
+        }
+    }
+
+    GetWorkspaceWindows(workspaceIndex: number): string {
+        try {
+            const windows = this.windowManager.list();
+            const workspaceWindows = windows.filter(
+                (win) => win.workspace === workspaceIndex,
+            );
+            return JSON.stringify(workspaceWindows);
+        } catch (error) {
+            logError("D-Bus: Error getting workspace windows", error);
+            throw error;
+        }
+    }
 }

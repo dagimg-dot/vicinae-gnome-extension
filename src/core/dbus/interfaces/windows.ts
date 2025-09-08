@@ -59,5 +59,15 @@ export const WINDOWS_DBUS_IFACE = `
       <method name="Close">
          <arg type="u" direction="in" name="winid" />
       </method>
+      <method name="ListWorkspaces">
+         <arg type="s" direction="out" name="workspaces" />
+      </method>
+      <method name="GetActiveWorkspace">
+         <arg type="s" direction="out" name="workspace" />
+      </method>
+      <method name="GetWorkspaceWindows">
+         <arg type="u" direction="in" name="workspaceIndex" />
+         <arg type="s" direction="out" name="windows" />
+      </method>
    </interface>
 </node>`;
