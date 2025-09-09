@@ -32,6 +32,12 @@ export class ClipboardService {
         // Set up the clipboard event listener and register it with the manager
         this.clipboardListener = (event: ClipboardEvent) => {
             try {
+                // Skip empty content to avoid cluttering clipboard history
+                if (!event.content || event.content.length === 0) {
+                    debug("Skipping empty clipboard content");
+                    return;
+                }
+
                 const metadata = calculateClipboardMetadata(event);
                 // The clipboard manager already handles blocking logic and logging
                 // We just need to emit the D-Bus signal for non-blocked events
