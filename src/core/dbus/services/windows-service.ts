@@ -66,10 +66,16 @@ export class WindowsService {
             "notify::focus-window",
             () => {
                 try {
-                    const focusWindow = global.display.focus_window;
-                    if (focusWindow) {
-                        this.emitFocusWindow(focusWindow.get_id().toString());
-                    }
+                    // Add a small delay to ensure GNOME Shell has updated its internal state
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                        const focusWindow = global.display.focus_window;
+                        if (focusWindow) {
+                            this.emitFocusWindow(
+                                focusWindow.get_id().toString(),
+                            );
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 } catch (error) {
                     debug(`Error handling window focus event: ${error}`);
                 }
@@ -333,6 +339,10 @@ export class WindowsService {
 
     List(): string {
         try {
+            // Force a brief delay to ensure focus state is consistent
+            // This helps prevent race conditions between focus changes and list requests
+            GLib.usleep(1000); // 1ms delay
+
             const windows = this.windowManager.list();
             return JSON.stringify(windows);
         } catch (error) {
