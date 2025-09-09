@@ -9,7 +9,7 @@
     "48"
   ],
   "settings-schema": "org.gnome.shell.extensions.vicinae",
-  "version-name": "1.2.2",
-  "version": 5,
+  "version-name": "1.3.0",
+  "version": 6,
   "url": "https://github.com/dagimg-dot/vicinae-gnome-extension"
 }
