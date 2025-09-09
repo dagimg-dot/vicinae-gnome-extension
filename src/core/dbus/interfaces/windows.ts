@@ -69,5 +69,33 @@ export const WINDOWS_DBUS_IFACE = `
          <arg type="u" direction="in" name="workspaceIndex" />
          <arg type="s" direction="out" name="windows" />
       </method>
+      <signal name="openwindow">
+         <arg type="s" name="windowAddress" />
+         <arg type="s" name="workspaceName" />
+         <arg type="s" name="wmClass" />
+         <arg type="s" name="title" />
+      </signal>
+      <signal name="closewindow">
+         <arg type="s" name="windowAddress" />
+      </signal>
+      <signal name="focuswindow">
+         <arg type="s" name="windowAddress" />
+      </signal>
+      <signal name="movewindow">
+         <arg type="s" name="windowAddress" />
+         <arg type="i" name="x" />
+         <arg type="i" name="y" />
+         <arg type="u" name="width" />
+         <arg type="u" name="height" />
+      </signal>
+      <signal name="statewindow">
+         <arg type="s" name="windowAddress" />
+         <arg type="s" name="state" />
+      </signal>
+      <signal name="workspacechanged">
+         <arg type="s" name="workspaceId" />
+      </signal>
+      <signal name="monitorlayoutchanged">
+      </signal>
    </interface>
 </node>`;

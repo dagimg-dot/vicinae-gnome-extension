@@ -5,7 +5,7 @@ import {
     exportDBusService,
     unexportDBusService,
 } from "../../utils/dbus-utils.js";
-import { info } from "../../utils/logger.js";
+import { error, info } from "../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import { CLIPBOARD_DBUS_IFACE } from "./interfaces/clipboard.js";
 import { WINDOWS_DBUS_IFACE } from "./interfaces/windows.js";
@@ -13,10 +13,10 @@ import { ClipboardService } from "./services/clipboard-service.js";
 import { WindowsService } from "./services/windows-service.js";
 
 export class DBusManager {
-    private clipboardService: Gio.DBusExportedObject;
-    private windowsService: Gio.DBusExportedObject;
-    private clipboardServiceInstance: ClipboardService;
-    private windowsServiceInstance: WindowsService;
+    private clipboardService!: Gio.DBusExportedObject;
+    private windowsService!: Gio.DBusExportedObject;
+    private clipboardServiceInstance!: ClipboardService;
+    private windowsServiceInstance!: WindowsService;
 
     constructor(
         extension?: Extension,
@@ -36,15 +36,16 @@ export class DBusManager {
 
         this.clipboardService = createDBusService(
             CLIPBOARD_DBUS_IFACE,
-            this.clipboardServiceInstance,
+            this.clipboardServiceInstance as any,
         );
         this.windowsService = createDBusService(
             WINDOWS_DBUS_IFACE,
-            this.windowsServiceInstance,
+            this.windowsServiceInstance as any,
         );
 
-        // Set the D-Bus object on the clipboard service so it can emit signals
+        // Set the D-Bus object on the services so they can emit signals
         this.clipboardServiceInstance.setDBusObject(this.clipboardService);
+        this.windowsServiceInstance.setDBusObject(this.windowsService);
     }
 
     exportServices(): void {
@@ -59,24 +60,25 @@ export class DBusManager {
             );
 
             info("D-Bus services exported successfully");
-        } catch (error) {
-            error("Failed to export D-Bus services", error);
+        } catch (_error) {
+            error("Failed to export D-Bus services", _error);
             throw error;
         }
     }
 
     unexportServices(): void {
         try {
-            // Clean up clipboard service
+            // Clean up services
             this.clipboardServiceInstance.destroy();
+            this.windowsServiceInstance.destroy();
 
             unexportDBusService(this.clipboardService);
             unexportDBusService(this.windowsService);
 
             info("D-Bus services unexported successfully");
-        } catch (error) {
-            error("Failed to unexport D-Bus services", error);
-            throw error;
+        } catch (_error) {
+            error("Failed to unexport D-Bus services", _error);
+            throw _error;
         }
     }
 
