@@ -40,7 +40,7 @@ authenticate() {
         error "Failed to connect to extensions.gnome.org"
     fi
     local token
-    token=$(echo "$response" | jq -r '.token // empty' 2>/dev/null || true)
+    token=$(echo "$response" | jq -r '.token.token // empty' 2>/dev/null || true)
     if [[ -n "$token" ]]; then
         echo "Authentication successful" >&2
         echo "$token"
