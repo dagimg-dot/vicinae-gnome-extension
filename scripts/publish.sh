@@ -67,8 +67,11 @@ upload_extension() {
         -F "tos_compliant=true" \
         "$UPLOAD_URL" || true)
     
-    local http_code=$(echo "$response" | tail -n1)
-    local response_body=$(echo "$response" | head -n -1)
+    local http_code
+    local response_body
+    
+    http_code=$(echo "$response" | tail -n1)
+    response_body=$(echo "$response" | head -n -1)
     
     if [[ -z "$response_body" ]]; then
         error "Failed to upload $file"
