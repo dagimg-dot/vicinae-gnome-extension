@@ -113,11 +113,14 @@ function build_extension_package() {
 		rm -f "$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip"
 		# Place the gresource at the root of the archive while keeping the built file under build/
 		cp "$RESOURCE_TARGET" "$JS_DIR/"
-		cd "$JS_DIR" && zip -qr "../$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip" \
-			. \
-			../metadata.json \
-			../LICENSE
+		# Copy metadata.json and LICENSE to dist/ directory so they're at the root of the zip
+		cp metadata.json "$JS_DIR/"
+		cp LICENSE "$JS_DIR/"
+		cd "$JS_DIR" && zip -qr "../$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip" .
+		# Clean up temporary files
 		rm -f "$JS_DIR/$UUID.gresource"
+		rm -f "$JS_DIR/metadata.json"
+		rm -f "$JS_DIR/LICENSE"
 	)
 
 	echo "Extension package zipped."
