@@ -1,4 +1,5 @@
 import { error as logError } from "../../utils/logger.js";
+import { isMaximized } from "../../utils/window-utils.js";
 
 export class WorkspaceManager {
     getWorkspaceCount(): number {
@@ -50,7 +51,7 @@ export class WorkspaceManager {
             if (workspace) {
                 const windows = workspace.list_windows();
                 const hasFullscreen = windows.some(
-                    (win) => win.get_maximized() === 3,
+                    (win) => isMaximized(win) === 3,
                 ); // Meta.MaximizeFlags.BOTH
 
                 // Get monitor from first window on this workspace, or default to 0

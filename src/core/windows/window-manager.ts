@@ -1,5 +1,9 @@
 import Meta from "gi://Meta";
-import { getCurrentTime, getWindowById } from "../../utils/window-utils.js";
+import {
+    getCurrentTime,
+    getWindowById,
+    isMaximized,
+} from "../../utils/window-utils.js";
 import type {
     FrameBounds,
     FrameRect,
@@ -39,7 +43,7 @@ export class VicinaeWindowManager implements WindowManager {
                 wm_class: metaWindow.get_wm_class(),
                 wm_class_instance: metaWindow.get_wm_class_instance(),
                 pid: metaWindow.get_pid(),
-                maximized: metaWindow.get_maximized() !== 0, // 0 means not maximized
+                maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
                 display: metaWindow.get_display(),
                 frame_type: metaWindow.get_frame_type(),
                 window_type: metaWindow.get_window_type(),
@@ -86,7 +90,7 @@ export class VicinaeWindowManager implements WindowManager {
             wm_class: metaWindow.get_wm_class(),
             wm_class_instance: metaWindow.get_wm_class_instance(),
             pid: metaWindow.get_pid(),
-            maximized: metaWindow.get_maximized() !== 0, // 0 means not maximized
+            maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
             display: metaWindow.get_display(),
             frame_type: metaWindow.get_frame_type(),
             window_type: metaWindow.get_window_type(),
