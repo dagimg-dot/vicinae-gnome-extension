@@ -36,10 +36,12 @@ export class DBusManager {
 
         this.clipboardService = createDBusService(
             CLIPBOARD_DBUS_IFACE,
+            // biome-ignore lint/suspicious/noExplicitAny: we need to cast the instance to any to avoid type errors
             this.clipboardServiceInstance as any,
         );
         this.windowsService = createDBusService(
             WINDOWS_DBUS_IFACE,
+            // biome-ignore lint/suspicious/noExplicitAny: we need to cast the instance to any to avoid type errors
             this.windowsServiceInstance as any,
         );
 
