@@ -1,3 +1,5 @@
+import type Meta from "gi://Meta";
+
 export interface WindowInfo {
     id: number;
     title: string;
@@ -70,4 +72,12 @@ export interface WindowManager {
     close(winid: number): void;
     listWorkspaces(): WorkspaceInfo[];
     getActiveWorkspace(): WorkspaceInfo;
+}
+
+/**
+ * This is a workaround to add the is_maximized() method to the Meta.Window type.
+ * This is needed because the method is not available in the type definitions for GNOME versions prior to 49.
+ */
+export interface MetaWindowExtended extends Meta.Window {
+    is_maximized?: () => boolean;
 }
