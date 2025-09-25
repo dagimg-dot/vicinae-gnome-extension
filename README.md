@@ -35,16 +35,16 @@
 
 ### Overview
 
-This extension uses a TypeScript-based development workflow with automated build scripts. The recommended setup involves:
+This extension uses a modern TypeScript-based development workflow with Bun and automated build scripts. The recommended setup involves:
 
-- **Host machine**: Edit code, run linting/formatting
+- **Host machine**: Edit code, run linting/formatting, and manage versions
 - **VM environment**: Test the extension in a controlled GNOME environment
-- **Automated scripts**: Handle building, installation, and development workflow
+- **Automated scripts**: Handle building, installation, VM setup, and development workflow
 
 ### Prerequisites
 
 - **Host**: Bun, OpenSSH client
-- **VM**: Fedora 41 with GNOME on Xorg (for unsafe reload support)
+- **VM**: Fedora 41+ with GNOME on Xorg (for unsafe reload support)
 
 ### Development Scripts
 
@@ -57,91 +57,97 @@ Handles the complete build process:
 - Creates the `.shell-extension.zip` package
 - Supports installation and unsafe reload options
 
-**Usage:**
-```bash
-./scripts/build.sh              # Build only
-./scripts/build.sh --install    # Build and install
-./scripts/build.sh --unsafe-reload  # Build, install, and reload GNOME Shell
-```
-
 #### `scripts/log.sh` - Log Monitoring
 Monitors GNOME Shell logs for debugging:
 - Captures logs from both `gnome-shell` and `gjs` processes
 - Supports filtered output showing only extension-related logs
 - Automatically extracts extension name from `metadata.json`
 
-**Usage:**
-```bash
-./scripts/log.sh        # All logs
-./scripts/log.sh -f     # Filtered logs (extension + errors only)
-```
-
-#### `scripts/setup-vm.sh` - VM Bootstrap
+#### `scripts/setup.sh` - VM Bootstrap
 Automates VM setup for development:
-- Copies `dev-vicinae.sh` to the VM
+- Generates `dev-{project}.sh` script for VM access
+- Copies development script to VM
 - Installs `sshfs` and creates mount points
-- Sets up proper permissions
+- Sets up proper permissions and SSHFS mounting
 
-**Usage:**
-```bash
-./scripts/setup-vm.sh user@vm-ip
-```
+#### `scripts/update-contrib.sh` - Contributor Management
+Automatically updates contributors in the About page:
+- Fetches contributors from git history
+- Updates the credits section with GitHub links
+- Maintains contributor information dynamically
 
-#### `scripts/dev-vicinae.sh` - Development Environment
-Sets up the development environment inside the VM:
-- Mounts the host project directory via SSHFS
-- Changes to the project directory
-- Provides an interactive shell
-
-**Usage:**
-```bash
-~/dev-vicinae.sh  # Run inside the VM
-```
+#### `scripts/bump-version.js` - Version Management
+Handles version bumping and releases:
+- Updates `package.json` and `metadata.json` versions
+- Creates git commits and tags
+- Supports semantic versioning
 
 ### Development Workflow
 
 #### 1. Host Machine Setup
 
+**Install Dependencies:**
+```bash
+bun install  # Install all dependencies
+```
+
 **Code Quality Tools:**
 ```bash
-bun format      # Format code with Biome
-bun lint        # Lint with safe fixes
-bun lint:fix    # Lint with unsafe fixes  
-bun check       # Combined lint + format
+bun format         # Format code with Biome
+bun lint          # Lint with safe fixes
+bun lint:fix      # Lint with unsafe fixes
+bun check         # Combined lint + format check
+bun check:types   # TypeScript type checking only
+```
+
+**Version Management:**
+```bash
+bun bump 1.5.0    # Bump version to 1.5.0
+bun release 1.5.0 # Bump version, commit, and create git tag
+```
+
+**Update Contributors:**
+```bash
+bun update-credits  # Update contributor list from git history
 ```
 
 #### 2. VM Environment Setup
 
 **Initial VM Configuration:**
-1. Choose "GNOME on Xorg" at login
-2. Enable Unsafe mode: `Alt+F2` → `lg` → settings → enable Unsafe mode
-2. Install required tools (automated by setup script):
+1. Choose "GNOME on Xorg" or "GNOME" at login
+2. Install required tools:
    ```bash
-   sudo dnf install -y fuse-sshfs gnome-extensions-app
+   sudo dnf install -y fuse-sshfs gnome-extensions-app jq
    ```
 3. Install Bun:
    ```bash
    curl -fsSL https://bun.sh/install | bash
    ```
 
-#### 3. Development Commands (Run in VM)
-
-**Bootstrap VM environment on Host:**
+**Bootstrap VM environment from Host:**
 ```bash
-bun setup user@vm-ip  # Bootstrap VM environment
+bun setup -- user@vm-ip  # Generate dev script and setup VM
 ```
+
+**Run generated script in VM:**
+```bash
+~/dev-vicinae-gnome-extension.sh  # Mount host directory and start shell
+```
+
+#### 3. Development Commands
 
 **Build and Install:**
 ```bash
-bun build:install    # Build and install extension
-bun dev             # Build, install, and unsafe-reload (Xorg only)
-bun dev:nested      # Build, install, and start nested Wayland session
+bun build           # Build extension package only
+bun build:install   # Build and install extension
+bun dev            # Build, install, and unsafe-reload (Xorg only)
+bun dev:nested     # Build, install, and start nested Wayland session
 ```
 
 **Debugging:**
 ```bash
-bun log             # Monitor extension logs (filtered)
-bun log:all         # Monitor all GNOME Shell logs
+bun log            # Monitor extension logs (filtered)
+bun log:all        # Monitor all GNOME Shell logs
 ```
 
 ### Project Structure
