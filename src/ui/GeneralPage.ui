@@ -66,6 +66,14 @@
             </property>
           </object>
         </child>
+        <child>
+          <object class="AdwEntryRow" id="journalctlCommand">
+            <property name="title" translatable="true">Extension Logs Command</property>
+            <property name="text">journalctl /usr/bin/gnome-shell -f -o cat</property>
+            <property name="editable">false</property>
+            <property name="show-apply-button">false</property>
+          </object>
+        </child>
       </object>
     </child>
   </template>

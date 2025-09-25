@@ -187,6 +187,7 @@ export const GeneralPage = GObject.registerClass(
             "loggingLevel",
             "launcherAutoCloseFocusLoss",
             "launcherAppClass",
+            "journalctlCommand",
         ],
     },
     class GeneralPage extends Adw.PreferencesPage {

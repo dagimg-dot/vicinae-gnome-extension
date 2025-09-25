@@ -8,6 +8,7 @@ export interface GeneralPageChildren {
     _loggingLevel: Adw.ComboRow;
     _launcherAutoCloseFocusLoss: Adw.SwitchRow;
     _launcherAppClass: Adw.EntryRow;
+    _journalctlCommand: Adw.EntryRow;
 }
 
 export interface AboutPageChildren {
