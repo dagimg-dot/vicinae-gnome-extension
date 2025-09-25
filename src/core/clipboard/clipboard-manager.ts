@@ -4,13 +4,12 @@ import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
 import {
-    bufferToBase64,
     calculateClipboardMetadata,
     getImageMimeType,
     isValidImageBuffer,
 } from "../../utils/clipboard-utils.js";
 import { debug, info, error as logError, warn } from "../../utils/logger.js";
-import type { ClipboardEvent, ImageContent } from "./types.js";
+import type { BufferLike, ClipboardEvent, ImageContent } from "./types.js";
 
 export class VicinaeClipboardManager {
     private eventListeners: ((event: ClipboardEvent) => void)[] = [];
@@ -25,12 +24,10 @@ export class VicinaeClipboardManager {
         this.setupClipboardMonitoring();
     }
 
-    // Method to set settings from external source (like main extension)
     setSettings(settings: Gio.Settings): void {
         this.settings = settings;
         info("Settings set in clipboard manager from external source");
 
-        // Debug: Log current blocked applications
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
             debug(`Current blocked applications: [${blockedApps.join(", ")}]`);
@@ -39,12 +36,10 @@ export class VicinaeClipboardManager {
         }
     }
 
-    // Method to update settings when they change
     updateSettings(settings: Gio.Settings): void {
         this.settings = settings;
         info("Settings updated in clipboard manager");
 
-        // Debug: Log updated blocked applications
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
             debug(`Updated blocked applications: [${blockedApps.join(", ")}]`);
@@ -102,27 +97,20 @@ export class VicinaeClipboardManager {
         contentType: string,
         mimeType: string,
     ): boolean {
-        // Only block text content, not images or other binary content
-        // This prevents blocking screenshots when the last focused app was blocked
         return contentType === "text" || mimeType.startsWith("text/");
     }
 
     private setupClipboardMonitoring() {
         try {
-            // Get the default clipboard (St.Clipboard is the correct way for GNOME Shell)
             this.clipboard = St.Clipboard.get_default();
-
-            // Get the global selection object for monitoring clipboard changes
             this.selection = Shell.Global.get().get_display().get_selection();
 
             if (this.selection) {
-                // Listen to 'owner-changed' signal (this is the correct approach)
                 this._selectionOwnerChangedId = this.selection.connect(
                     "owner-changed",
                     this.onSelectionOwnerChanged.bind(this),
                 );
 
-                // Get initial content
                 this.queryClipboard();
 
                 info(
@@ -140,7 +128,6 @@ export class VicinaeClipboardManager {
         _: unknown,
         selectionType: Meta.SelectionType,
     ) {
-        // When clipboard selection changes, query the clipboard
         if (selectionType === Meta.SelectionType.SELECTION_CLIPBOARD) {
             this.queryClipboard();
         }
@@ -150,28 +137,23 @@ export class VicinaeClipboardManager {
         if (!this.clipboard) return;
 
         try {
-            // Check for text content in CLIPBOARD
             this.clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
                 if (text) {
                     this.processClipboardContent(text, "system");
                 }
             });
 
-            // Check for text content in PRIMARY (screenshots often use this)
             this.clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
                 if (text) {
                     this.processClipboardContent(text, "system");
                 }
             });
 
-            // Check available MIME types to see what's in the clipboard
             const mimeTypes = this.clipboard.get_mimetypes(
                 St.ClipboardType.CLIPBOARD,
             );
             if (mimeTypes.length > 0) {
-                // Check if image data is available
                 if (mimeTypes.some((type) => type.startsWith("image/"))) {
-                    // Capture the actual image data
                     this.captureImageData();
                 }
             }
@@ -184,16 +166,13 @@ export class VicinaeClipboardManager {
         if (!this.clipboard) return;
 
         try {
-            // Try to get the actual content using get_content
             try {
                 this.clipboard.get_content(
                     St.ClipboardType.CLIPBOARD,
-                    "image/png", // MIME type we want
+                    "image/png",
                     (_: unknown, content: unknown) => {
                         if (content) {
-                            // Process the content if it contains image data
                             if (content && typeof content === "object") {
-                                // Check if it's a GLib.Bytes object
                                 if (
                                     content.constructor &&
                                     (content.constructor.name ===
@@ -209,7 +188,6 @@ export class VicinaeClipboardManager {
                                         content as GLib.Bytes,
                                     );
                                 } else {
-                                    // Type guard to ensure content has required properties
                                     if (
                                         content &&
                                         typeof content === "object" &&
@@ -242,26 +220,35 @@ export class VicinaeClipboardManager {
 
     private processImageContent(content: ImageContent) {
         try {
-            // Try to extract image data from the content object
             if (content.data && content.data.length > 0) {
-                // Validate if this is actually image data
                 const isValid = isValidImageBuffer(content.data);
                 const detectedMimeType = getImageMimeType(content.data);
                 const finalMimeType = content.mimeType || detectedMimeType;
 
                 if (isValid) {
-                    // Convert to base64 if it's binary data
-                    const base64Data = bufferToBase64(content.data);
-                    const imageContent = `data:${finalMimeType};base64,${base64Data}`;
+                    debug(
+                        `Processed image content: ${finalMimeType}, ${content.data.length} bytes`,
+                    );
 
-                    this.processClipboardContent(imageContent, "image");
+                    const binaryMarker = `[BINARY_IMAGE:${finalMimeType}:${content.data.length}]`;
+                    this.storeBinaryData(
+                        binaryMarker,
+                        content.data,
+                        finalMimeType,
+                    );
+
+                    this.processClipboardContent(binaryMarker, "image");
                 } else {
+                    warn(
+                        `Invalid image buffer detected: ${content.data.length} bytes`,
+                    );
                     this.processClipboardContent(
                         "[BINARY_DATA_AVAILABLE]",
                         "system",
                     );
                 }
             } else {
+                debug("No image data available in content object");
                 this.processClipboardContent(
                     "[IMAGE_DATA_AVAILABLE]",
                     "system",
@@ -273,27 +260,48 @@ export class VicinaeClipboardManager {
         }
     }
 
+    private binaryDataStore = new Map<
+        string,
+        { data: BufferLike; mimeType: string }
+    >();
+
+    private storeBinaryData(
+        marker: string,
+        data: BufferLike,
+        mimeType: string,
+    ) {
+        this.binaryDataStore.set(marker, { data, mimeType });
+        debug(`Stored binary data: ${marker}`);
+    }
+
+    getBinaryData(
+        marker: string,
+    ): { data: BufferLike; mimeType: string } | null {
+        return this.binaryDataStore.get(marker) || null;
+    }
+
     private extractGLibBytesData(bytes: GLib.Bytes) {
         try {
-            // Try different methods to extract the data
-
             if (typeof bytes.get_data === "function") {
                 try {
                     const data = bytes.get_data();
 
                     if (data && data.length > 0) {
-                        // Validate if this is actually image data
                         const isValid = isValidImageBuffer(data);
                         const mimeType = getImageMimeType(data);
 
                         if (isValid) {
-                            // Convert to base64 for transmission
-                            const base64Data = bufferToBase64(data);
+                            const binaryMarker = `[BINARY_IMAGE:${mimeType}:${data.length}]`;
+                            this.storeBinaryData(binaryMarker, data, mimeType);
 
-                            // Emit the actual image data with metadata
-                            const imageContent = `data:${mimeType};base64,${base64Data}`;
-                            this.processClipboardContent(imageContent, "image");
+                            debug(
+                                `Extracted GLib.Bytes data: ${mimeType}, ${data.length} bytes`,
+                            );
+                            this.processClipboardContent(binaryMarker, "image");
                         } else {
+                            warn(
+                                `Invalid image buffer from get_data: ${data.length} bytes`,
+                            );
                             this.processClipboardContent(
                                 "[BINARY_DATA_AVAILABLE]",
                                 "system",
@@ -309,16 +317,18 @@ export class VicinaeClipboardManager {
                 try {
                     const array = bytes.toArray();
 
-                    // If get_data failed but toArray works, try with the array
                     if (array && array.length > 0) {
                         const isValid = isValidImageBuffer(array);
                         const mimeType = getImageMimeType(array);
 
                         if (isValid) {
-                            const base64Data = bufferToBase64(array);
+                            const binaryMarker = `[BINARY_IMAGE:${mimeType}:${array.length}]`;
+                            this.storeBinaryData(binaryMarker, array, mimeType);
 
-                            const imageContent = `data:${mimeType};base64,${base64Data}`;
-                            this.processClipboardContent(imageContent, "image");
+                            debug(
+                                `Extracted GLib.Bytes array data: ${mimeType}, ${array.length} bytes`,
+                            );
+                            this.processClipboardContent(binaryMarker, "image");
                         }
                     }
                 } catch (toArrayError) {
@@ -367,10 +377,7 @@ export class VicinaeClipboardManager {
         const isBlocked = this.isApplicationBlocked(metadata.sourceApp);
         const shouldBlock =
             isBlocked &&
-            this.shouldBlockContentType(
-                metadata.contentType,
-                metadata.mimeType,
-            );
+            this.shouldBlockContentType(event.contentType, metadata.mimeType);
 
         debug("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
@@ -382,13 +389,9 @@ export class VicinaeClipboardManager {
             timestamp: new Date(event.timestamp).toISOString(),
             source: event.source,
             listeners: this.eventListeners.length,
-            // Enhanced metadata fields (same as DBUS emission)
             mimeType: metadata.mimeType,
-            contentType: metadata.contentType,
-            contentHash: metadata.contentHash,
-            size: metadata.size,
+            contentType: event.contentType,
             sourceApp: metadata.sourceApp,
-            // Blocking status for user visibility
             isBlocked: isBlocked,
             shouldBlock: shouldBlock,
             note: shouldBlock
@@ -396,15 +399,12 @@ export class VicinaeClipboardManager {
                 : "✅ Event will be processed normally",
         });
 
-        // Block the event if it should be blocked - don't notify listeners
         if (shouldBlock) {
             debug(
-                `🚫 Clipboard access blocked for application: ${metadata.sourceApp} (${metadata.contentType}) - Event not forwarded to listeners`,
+                `🚫 Clipboard access blocked for application: ${metadata.sourceApp} (${event.contentType}) - Event not forwarded to listeners`,
             );
-            return; // Don't emit to listeners for blocked applications
+            return;
         }
-
-        // Only emit to listeners if not blocked
         this.eventListeners.forEach((listener) => {
             try {
                 listener(event);
@@ -414,13 +414,11 @@ export class VicinaeClipboardManager {
         });
     }
 
-    // Method for external components to listen to clipboard events
     onClipboardChange(listener: (event: ClipboardEvent) => void): void {
         this.eventListeners.push(listener);
         debug("👂 Clipboard change listener added");
     }
 
-    // Method to remove a listener
     removeClipboardListener(listener: (event: ClipboardEvent) => void): void {
         const index = this.eventListeners.indexOf(listener);
         if (index > -1) {
@@ -429,16 +427,13 @@ export class VicinaeClipboardManager {
         }
     }
 
-    // Method to get current clipboard content
     getCurrentContent(): string {
         return this.currentContent;
     }
 
-    // Method to set clipboard content
     setContent(content: string): void {
         if (this.clipboard) {
             try {
-                // Set both clipboard and primary selection
                 this.clipboard.set_text(St.ClipboardType.CLIPBOARD, content);
                 this.clipboard.set_text(St.ClipboardType.PRIMARY, content);
 
@@ -450,7 +445,6 @@ export class VicinaeClipboardManager {
         }
     }
 
-    // Method to manually trigger clipboard change (for testing or external triggers)
     triggerClipboardChange(
         content: string,
         source: "user" | "system" | "image" = "user",
@@ -458,7 +452,6 @@ export class VicinaeClipboardManager {
         this.emitClipboardEvent(content, source);
     }
 
-    // Cleanup method
     destroy(): void {
         if (this.selection && this._selectionOwnerChangedId) {
             try {

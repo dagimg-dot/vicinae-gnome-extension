@@ -1,153 +1,12 @@
 import type { BufferLike } from "../core/clipboard/types.js";
-import { error as logError } from "./logger.js";
 import { getFocusedWindowApp } from "./window-utils.js";
 
 /**
- * Converts a Uint8Array to base64 string using direct bit manipulation
- * This is more reliable than btoa() for large binary data
+ * Configuration constants for performance optimization
  */
-export function uint8ArrayToBase64(uint8Array: Uint8Array): string {
-    try {
-        // Create a base64 lookup table
-        const base64Chars =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let result = "";
-
-        // Process 3 bytes at a time (24 bits = 4 base64 characters)
-        for (let i = 0; i < uint8Array.length; i += 3) {
-            const byte1 = uint8Array[i] || 0;
-            const byte2 = uint8Array[i + 1] || 0;
-            const byte3 = uint8Array[i + 2] || 0;
-
-            // Convert 3 bytes to 4 base64 characters
-            const chunk1 = (byte1 >> 2) & 0x3f;
-            const chunk2 = ((byte1 & 0x3) << 4) | ((byte2 >> 4) & 0xf);
-            const chunk3 = ((byte2 & 0xf) << 2) | ((byte3 >> 6) & 0x3);
-            const chunk4 = byte3 & 0x3f;
-
-            result +=
-                base64Chars[chunk1] +
-                base64Chars[chunk2] +
-                base64Chars[chunk3] +
-                base64Chars[chunk4];
-        }
-
-        // Add padding if needed
-        const padding = 3 - (uint8Array.length % 3);
-        if (padding < 3) {
-            result = result.slice(0, -padding) + "=".repeat(padding);
-        }
-
-        return result;
-    } catch (error) {
-        logError("Error in direct base64 conversion", error);
-        throw error;
-    }
-}
-
-/**
- * Fallback base64 conversion using btoa() with chunked processing
- * Used as a backup if the direct method fails
- */
-export function uint8ArrayToBase64Fallback(uint8Array: Uint8Array): string {
-    try {
-        // Use a chunked approach to avoid memory issues with large arrays
-        const chunkSize = 8192; // Process in 8KB chunks
-        let binaryString = "";
-
-        // Process in chunks to avoid memory issues
-
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-            const chunk = uint8Array.slice(i, i + chunkSize);
-            let chunkString = "";
-
-            // Convert chunk to string
-            for (let j = 0; j < chunk.length; j++) {
-                chunkString += String.fromCharCode(chunk[j]);
-            }
-
-            binaryString += chunkString;
-        }
-
-        // Binary string created
-
-        // Convert to base64
-        const base64Result = btoa(binaryString);
-
-        // Conversion complete
-
-        return base64Result;
-    } catch (error) {
-        logError("Error in fallback base64 conversion", error);
-        throw error;
-    }
-}
-
-/**
- * Converts any buffer-like object to base64 string
- * Handles GLib.Bytes, ArrayBuffer, and Uint8Array
- */
-export function bufferToBase64(
-    buffer: BufferLike | ArrayBuffer | Uint8Array,
-): string {
-    try {
-        let uint8Array: Uint8Array;
-
-        // Handle different buffer types
-        if (buffer instanceof ArrayBuffer) {
-            uint8Array = new Uint8Array(buffer);
-        } else if (buffer instanceof Uint8Array) {
-            uint8Array = buffer;
-        } else if (
-            buffer &&
-            typeof buffer === "object" &&
-            "length" in buffer &&
-            buffer.length > 0
-        ) {
-            // Handle GLib.Bytes data (which might be a special array-like object)
-            uint8Array = new Uint8Array(buffer.length);
-            for (let i = 0; i < buffer.length; i++) {
-                uint8Array[i] = (buffer as BufferLike)[i];
-            }
-        } else {
-            // Unknown buffer type, returning empty string
-            return "";
-        }
-
-        // Try the direct method first (more reliable)
-        try {
-            return uint8ArrayToBase64(uint8Array);
-        } catch (_directError) {
-            // Direct conversion failed, try fallback
-
-            // Try the fallback method
-            try {
-                return uint8ArrayToBase64Fallback(uint8Array);
-            } catch (fallbackError) {
-                // Fallback failed too
-
-                // Last resort: try simple conversion for small arrays
-                if (uint8Array.length <= 1024) {
-                    try {
-                        // Try simple conversion for small array
-                        let binaryString = "";
-                        for (let i = 0; i < uint8Array.length; i++) {
-                            binaryString += String.fromCharCode(uint8Array[i]);
-                        }
-                        return btoa(binaryString);
-                    } catch (_simpleError) {
-                        // Simple conversion also failed
-                    }
-                }
-
-                throw fallbackError;
-            }
-        }
-    } catch (error) {
-        logError("Error converting buffer to base64", error);
-        return "";
-    }
-}
+export const CLIPBOARD_CONFIG = {
+    MAX_CLIPBOARD_SIZE: 10 * 1024 * 1024, // 10MB - reasonable clipboard limit
+} as const;
 
 /**
  * Validates if a buffer contains valid image data
@@ -316,24 +175,8 @@ export function getImageMimeType(
 }
 
 /**
- * Simple hash function for content deduplication
- */
-export function simpleHash(str: string): string {
-    let hash = 0;
-    if (str.length === 0) return hash.toString();
-
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-
-    return Math.abs(hash).toString(16);
-}
-
-/**
- * Calculates comprehensive clipboard metadata for an event
- * Used by both clipboard manager and DBUS service
+ * Calculates simplified clipboard metadata for an event
+ * Removed unused fields (timestamp, contentType, contentHash, size)
  */
 export function calculateClipboardMetadata(event: {
     content: string;
@@ -341,34 +184,21 @@ export function calculateClipboardMetadata(event: {
 }) {
     const content = event.content;
     let mimeType = "text/plain";
-    let contentType = "text";
-    let contentHash = "";
-    let size = 0;
     const sourceApp = getFocusedWindowApp();
 
-    // Determine content type and MIME type
+    // Determine MIME type based on content
     if (event.source === "image") {
-        contentType = "image";
         if (content.startsWith("data:image/")) {
             const match = content.match(/^data:(image\/[^;]+);/);
             mimeType = match ? match[1] : "image/png";
         }
-        // Calculate hash for image data
-        contentHash = simpleHash(content);
-        size = content.length;
     } else if (content.startsWith("data:")) {
         // Handle other data URLs
         const match = content.match(/^data:([^;]+);/);
         mimeType = match ? match[1] : "application/octet-stream";
-        contentType = "binary";
-        contentHash = simpleHash(content);
-        size = content.length;
     } else {
         // Text content
         mimeType = "text/plain";
-        contentType = "text";
-        contentHash = simpleHash(content);
-        size = content.length;
 
         // Check if it looks like HTML
         if (
@@ -379,23 +209,11 @@ export function calculateClipboardMetadata(event: {
                 content.includes("<p"))
         ) {
             mimeType = "text/html";
-            contentType = "html";
-        }
-
-        // Check if it looks like a file path
-        if (
-            content.includes("/") &&
-            (content.includes(".") || content.includes("~"))
-        ) {
-            contentType = "file";
         }
     }
 
     return {
         mimeType,
-        contentType,
-        contentHash,
-        size,
         sourceApp,
     };
 }
