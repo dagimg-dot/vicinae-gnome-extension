@@ -20,3 +20,8 @@ export interface AboutPageChildren {
     _legalRow: Adw.ExpanderRow;
     _extensionLicense: Gtk.TextView;
 }
+
+export interface Credit {
+    title: string;
+    subtitle: string;
+}

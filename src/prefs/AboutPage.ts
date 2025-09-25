@@ -5,8 +5,15 @@ import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 import type { ExtensionMetadata } from "@girs/gnome-shell/extensions/extension";
 import { Icons } from "../lib/icons.js";
-import type { AboutPageChildren } from "../types/prefs.js";
+import type { AboutPageChildren, Credit } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
+
+export const CREDITS: Credit[] = [
+    {
+        title: "Dagim G. Astatkie",
+        subtitle: "Original Author",
+    },
+];
 
 const LICENSE = `MIT License
 
@@ -77,6 +84,20 @@ export const AboutPage = GObject.registerClass(
             }
 
             children._extensionLicense.buffer.set_text(LICENSE, -1);
+
+            this.renderCredits(children);
+        }
+
+        private renderCredits(children: AboutPageChildren) {
+            const creditsExpander = children._creditsRow;
+
+            CREDITS.forEach((credit) => {
+                const creditRow = new Adw.ActionRow({
+                    title: credit.title,
+                    subtitle: credit.subtitle,
+                });
+                creditsExpander.add_row(creditRow);
+            });
         }
     },
 );

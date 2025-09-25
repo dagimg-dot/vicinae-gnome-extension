@@ -87,12 +87,7 @@
           <object class="AdwExpanderRow" id="creditsRow">
             <property name="title" translatable="true">Credits</property>
             <property name="subtitle" translatable="true">Contributors and acknowledgments</property>
-            <child>
-              <object class="AdwActionRow">
-                <property name="title">Dagim G. Astatkie</property>
-                <property name="subtitle">Original Author</property>
-              </object>
-            </child>
+            <!-- Credits will be dynamically added here -->
           </object>
         </child>
       </object>
