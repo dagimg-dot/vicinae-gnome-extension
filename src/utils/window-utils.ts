@@ -48,12 +48,12 @@ export const getFocusedWindowApp = () => {
     return "gnome-shell"; // Fallback to gnome-shell if no focused window
 };
 
+/**
+ * Starting from GNOME 49, the method is_maximized() is available on the Window object.
+ * This is used to check if a window is maximized.
+ * For older versions, we use get_maximized() instead.
+ */
 export const isMaximized = (win: MetaWindowExtended) => {
-    /**
-     * Starting from GNOME 49, the method is_maximized() is available on the Window object.
-     * This is used to check if a window is maximized.
-     * For older versions, we use get_maximized() instead.
-     */
     if (win.is_maximized !== undefined) {
         return win.is_maximized();
     }
