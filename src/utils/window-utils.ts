@@ -45,3 +45,11 @@ export const getFocusedWindowApp = () => {
     }
     return "gnome-shell"; // Fallback to gnome-shell if no focused window
 };
+
+export const isMaximized = (win) => {
+    if (win.is_maximized !== undefined) {
+        return win.is_maximized();
+    }
+
+    return win.get_maximized();
+};
