@@ -1,10 +1,10 @@
 import Adw from "gi://Adw";
 import Gdk from "gi://Gdk";
-import Gio from "gi://Gio";
-import GLib from "gi://GLib";
+import type Gio from "gi://Gio";
 import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 import type { ExtensionMetadata } from "@girs/gnome-shell/extensions/extension";
+import { Icons } from "../lib/icons.js";
 import type { AboutPageChildren } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
 
@@ -49,23 +49,11 @@ export const AboutPage = GObject.registerClass(
         setMetadata(metadata: ExtensionMetadata) {
             const children = this as unknown as AboutPageChildren;
 
-            // Set the icon from the project's assets
-            const iconPath = GLib.uri_resolve_relative(
-                import.meta.url,
-                "assets/icons/vicinae-symbolic.svg",
-                GLib.UriFlags.NONE,
-            );
-            if (iconPath) {
-                try {
-                    const iconFile = Gio.File.new_for_uri(iconPath);
-                    children._extensionIcon.set_from_file(iconFile.get_path());
-                } catch (_error) {
-                    // Fallback to a generic icon if the custom icon fails to load
-                    children._extensionIcon.set_from_icon_name(
-                        "application-x-executable",
-                    );
-                }
-            }
+            new Icons(metadata.path);
+
+            const vicinaeIcon = Icons.get("vicinae-symbolic") as Gio.Icon;
+
+            children._extensionIcon.set_from_gicon(vicinaeIcon);
 
             children._extensionName.set_text(metadata.name);
             children._extensionVersion.set_text(
