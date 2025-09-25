@@ -5,7 +5,7 @@ import {
     CLIPBOARD_CONFIG,
     calculateClipboardMetadata,
 } from "../../../utils/clipboard-utils.js";
-import { debug, info, error as logError, warn } from "../../../utils/logger.js";
+import { logger } from "../../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import type { BufferLike, ClipboardEvent } from "../../clipboard/types.js";
 
@@ -20,7 +20,7 @@ export class ClipboardService {
         _extension?: Extension,
     ) {
         this.clipboardManager = clipboardManager;
-        info("ClipboardService initialized with binary-only protocol");
+        logger.info("ClipboardService initialized with binary-only protocol");
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -32,7 +32,7 @@ export class ClipboardService {
             try {
                 // Skip empty content
                 if (!event.content || event.content.length === 0) {
-                    debug("Skipping empty clipboard content");
+                    logger.debug("Skipping empty clipboard content");
                     return;
                 }
 
@@ -49,11 +49,11 @@ export class ClipboardService {
                         content = this.bufferLikeToUint8Array(binaryInfo.data);
                         finalMimeType = binaryInfo.mimeType;
 
-                        debug(
+                        logger.debug(
                             `Using direct binary data: ${finalMimeType}, ${content.length} bytes`,
                         );
                     } else {
-                        warn(
+                        logger.warn(
                             `Binary data not found for marker: ${event.content}`,
                         );
                         return;
@@ -64,13 +64,13 @@ export class ClipboardService {
                 }
 
                 if (content.length > CLIPBOARD_CONFIG.MAX_CLIPBOARD_SIZE) {
-                    warn(
+                    logger.warn(
                         `Clipboard data too large: ${content.length} bytes, skipping`,
                     );
                     return;
                 }
 
-                debug(
+                logger.debug(
                     `Processing clipboard: ${finalMimeType}, ${content.length} bytes from ${metadata.sourceApp}`,
                 );
 
@@ -79,7 +79,7 @@ export class ClipboardService {
                     sourceApp: metadata.sourceApp,
                 });
             } catch (signalError) {
-                logError("Error processing clipboard event", {
+                logger.error("Error processing clipboard event", {
                     error: signalError,
                     errorType: typeof signalError,
                     errorMessage:
@@ -98,7 +98,7 @@ export class ClipboardService {
         this.clipboardManager.onClipboardChange(this.clipboardListener);
         this.isListening = true;
 
-        info("📡 Binary-only D-Bus clipboard listener activated");
+        logger.info("📡 Binary-only D-Bus clipboard listener activated");
     }
 
     private bufferLikeToUint8Array(buffer: BufferLike): Uint8Array {
@@ -129,7 +129,7 @@ export class ClipboardService {
         },
     ) {
         try {
-            debug(
+            logger.debug(
                 `Emitting binary signal: ${metadata.mimeType}, ${content.length} bytes`,
             );
 
@@ -142,11 +142,11 @@ export class ClipboardService {
                 ]),
             );
 
-            info(
+            logger.info(
                 `Binary signal emitted: ${metadata.mimeType}, ${content.length} bytes`,
             );
         } catch (error) {
-            logError("Failed to emit binary signal", error);
+            logger.error("Failed to emit binary signal", error);
             throw error;
         }
     }
@@ -155,19 +155,19 @@ export class ClipboardService {
     ListenToClipboardChanges(): void {
         try {
             if (!this.isListening && this.clipboardListener) {
-                debug("D-Bus: Starting clipboard listener...");
+                logger.debug("D-Bus: Starting clipboard listener...");
                 this.clipboardManager.onClipboardChange(this.clipboardListener);
                 this.isListening = true;
-                info(
+                logger.info(
                     "📡 Binary D-Bus clipboard listener activated via method call",
                 );
             } else if (this.isListening) {
-                debug("D-Bus: Clipboard listener already active");
+                logger.debug("D-Bus: Clipboard listener already active");
             } else {
-                warn("D-Bus: No clipboard listener available");
+                logger.warn("D-Bus: No clipboard listener available");
             }
         } catch (error) {
-            logError("D-Bus: Error starting clipboard listener", error);
+            logger.error("D-Bus: Error starting clipboard listener", error);
             throw error;
         }
     }
@@ -180,7 +180,7 @@ export class ClipboardService {
                 source as "user" | "system",
             );
         } catch (error) {
-            logError("D-Bus: Error triggering clipboard change", error);
+            logger.error("D-Bus: Error triggering clipboard change", error);
             throw error;
         }
     }
@@ -190,7 +190,10 @@ export class ClipboardService {
         try {
             return this.clipboardManager.getCurrentContent();
         } catch (error) {
-            logError("D-Bus: Error getting current clipboard content", error);
+            logger.error(
+                "D-Bus: Error getting current clipboard content",
+                error,
+            );
             throw error;
         }
     }
@@ -200,7 +203,7 @@ export class ClipboardService {
         try {
             this.clipboardManager.setContent(content);
         } catch (error) {
-            logError("D-Bus: Error setting clipboard content", error);
+            logger.error("D-Bus: Error setting clipboard content", error);
             throw error;
         }
     }
@@ -218,7 +221,7 @@ export class ClipboardService {
                 "application/x-vicinae-concealed",
             ];
         } catch (error) {
-            logError("D-Bus: Error getting clipboard MIME types", error);
+            logger.error("D-Bus: Error getting clipboard MIME types", error);
             return [];
         }
     }
@@ -232,10 +235,10 @@ export class ClipboardService {
                 );
                 this.clipboardListener = null;
                 this.isListening = false;
-                info("🔕 Binary D-Bus clipboard listener deactivated");
+                logger.info("🔕 Binary D-Bus clipboard listener deactivated");
             }
         } catch (error) {
-            logError("Error stopping clipboard listener", error);
+            logger.error("Error stopping clipboard listener", error);
         }
     }
 
@@ -243,6 +246,6 @@ export class ClipboardService {
     destroy(): void {
         this.StopListening();
         this.dbusObject = null;
-        info("ClipboardService destroyed");
+        logger.info("ClipboardService destroyed");
     }
 }

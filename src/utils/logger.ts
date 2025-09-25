@@ -25,13 +25,10 @@ const stringToLogLevel = (level: string): LogLevel => {
 };
 
 // Global settings reference for logger
-let _globalSettings: Gio.Settings | null = null;
 let currentLogLevel: LogLevel = LogLevel.INFO;
 
 // Initialize logger with settings
 export const initializeLogger = (settings: Gio.Settings) => {
-    _globalSettings = settings;
-
     // Set initial log level
     const levelString = settings.get_string("logging-level");
     currentLogLevel = stringToLogLevel(levelString);
@@ -72,20 +69,19 @@ const log = (level: LogLevel, message: string, data?: unknown) => {
     }
 };
 
-// Public logging functions
-export const debug = (message: string, data?: unknown) => {
+const debug = (message: string, data?: unknown) => {
     log(LogLevel.DEBUG, message, data);
 };
 
-export const info = (message: string, data?: unknown) => {
+const info = (message: string, data?: unknown) => {
     log(LogLevel.INFO, message, data);
 };
 
-export const warn = (message: string, data?: unknown) => {
+const warn = (message: string, data?: unknown) => {
     log(LogLevel.WARN, message, data);
 };
 
-export const error = (message: string, error?: unknown) => {
+const error = (message: string, error?: unknown) => {
     const timestamp = new Date().toISOString();
     const prefix = `[${PROJECT_NAME}] ${timestamp} ERROR`;
 
@@ -95,4 +91,11 @@ export const error = (message: string, error?: unknown) => {
     } else {
         console.error(`${prefix}: ${message}`);
     }
+};
+
+export const logger = {
+    debug,
+    info,
+    warn,
+    error,
 };

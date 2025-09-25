@@ -1,5 +1,5 @@
 import type Meta from "gi://Meta";
-import { info, error as logError } from "../../utils/logger.js";
+import { logger } from "../../utils/logger.js";
 
 declare const global: {
     display: Meta.Display;
@@ -18,9 +18,9 @@ export class FocusTracker {
                     this.onFocusChange();
                 },
             );
-            info("FocusTracker: Focus tracking enabled");
+            logger.info("FocusTracker: Focus tracking enabled");
         } catch (error) {
-            logError("FocusTracker: Error enabling focus tracking", error);
+            logger.error("FocusTracker: Error enabling focus tracking", error);
             throw error;
         }
     }
@@ -30,6 +30,6 @@ export class FocusTracker {
             global.display.disconnect(this.focusHandler);
             this.focusHandler = undefined;
         }
-        info("FocusTracker: Focus tracking disabled");
+        logger.info("FocusTracker: Focus tracking disabled");
     }
 }

@@ -1,6 +1,6 @@
 import Clutter from "gi://Clutter";
 import type Meta from "gi://Meta";
-import { info, error as logError } from "../../utils/logger.js";
+import { logger } from "../../utils/logger.js";
 
 declare const global: {
     stage: Clutter.Stage;
@@ -27,9 +27,9 @@ export class ClickHandler {
                     return Clutter.EVENT_PROPAGATE;
                 },
             );
-            info("ClickHandler: Click tracking enabled");
+            logger.info("ClickHandler: Click tracking enabled");
         } catch (error) {
-            logError("ClickHandler: Error enabling click tracking", error);
+            logger.error("ClickHandler: Error enabling click tracking", error);
             throw error;
         }
     }
@@ -39,7 +39,7 @@ export class ClickHandler {
             global.stage.disconnect(this.buttonPressHandler);
             this.buttonPressHandler = undefined;
         }
-        info("ClickHandler: Click tracking disabled");
+        logger.info("ClickHandler: Click tracking disabled");
     }
 
     private handleClick() {

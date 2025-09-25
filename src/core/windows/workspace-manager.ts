@@ -1,4 +1,4 @@
-import { error as logError } from "../../utils/logger.js";
+import { logger } from "../../utils/logger.js";
 import { isMaximized } from "../../utils/window-utils.js";
 
 export class WorkspaceManager {
@@ -7,7 +7,7 @@ export class WorkspaceManager {
             const workspaceManager = global.workspace_manager;
             return workspaceManager.get_n_workspaces();
         } catch (error) {
-            logError("Error getting workspace count", error);
+            logger.error("Error getting workspace count", error);
             return 0;
         }
     }
@@ -18,7 +18,7 @@ export class WorkspaceManager {
             const currentWorkspace = workspaceManager.get_active_workspace();
             return currentWorkspace.index();
         } catch (error) {
-            logError("Error getting current workspace index", error);
+            logger.error("Error getting current workspace index", error);
             return 0;
         }
     }
@@ -28,7 +28,7 @@ export class WorkspaceManager {
             const workspaceManager = global.workspace_manager;
             return workspaceManager.get_workspace_by_index(index);
         } catch (error) {
-            logError("Error getting workspace by index", error);
+            logger.error("Error getting workspace by index", error);
             return null;
         }
     }
@@ -40,7 +40,7 @@ export class WorkspaceManager {
                 workspace.activate(global.get_current_time());
             }
         } catch (error) {
-            logError("Error switching to workspace", error);
+            logger.error("Error switching to workspace", error);
             throw error;
         }
     }
@@ -73,7 +73,7 @@ export class WorkspaceManager {
             }
             return null;
         } catch (error) {
-            logError("Error getting workspace info", error);
+            logger.error("Error getting workspace info", error);
             return null;
         }
     }
@@ -95,7 +95,7 @@ export class WorkspaceManager {
 
             return workspaces;
         } catch (error) {
-            logError("Error getting all workspaces", error);
+            logger.error("Error getting all workspaces", error);
             return [];
         }
     }

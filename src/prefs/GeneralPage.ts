@@ -4,7 +4,7 @@ import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 import type { GeneralPageChildren } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
-import { debug, error as logError } from "../utils/logger.js";
+import { logger } from "../utils/logger.js";
 
 type BlockedAppRowType = InstanceType<typeof BlockedAppRow>;
 
@@ -197,7 +197,7 @@ export const GeneralPage = GObject.registerClass(
 
         bindSettings(settings: Gio.Settings) {
             this.settings = settings;
-            debug("Settings bound to GeneralPage");
+            logger.debug("Settings bound to GeneralPage");
 
             this.loadBlockedApplications();
             this.updateAddButtonState(); // Initial state
@@ -282,7 +282,7 @@ export const GeneralPage = GObject.registerClass(
                     this.addBlockedAppRow(windowClass);
                 });
             } catch (error) {
-                logError("Error loading blocked applications", error);
+                logger.error("Error loading blocked applications", error);
             }
         }
 
@@ -433,7 +433,7 @@ export const GeneralPage = GObject.registerClass(
                 }
                 this.blockedAppRows.set(newClass, row);
             } catch (error) {
-                logError("Error updating blocked app in settings", error);
+                logger.error("Error updating blocked app in settings", error);
             }
         }
 
@@ -463,7 +463,7 @@ export const GeneralPage = GObject.registerClass(
                 // Update our internal tracking
                 this.blockedAppRows.delete(oldClass);
             } catch (error) {
-                logError("Error removing blocked app from settings", error);
+                logger.error("Error removing blocked app from settings", error);
             }
         }
 

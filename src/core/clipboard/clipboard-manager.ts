@@ -8,7 +8,7 @@ import {
     getImageMimeType,
     isValidImageBuffer,
 } from "../../utils/clipboard-utils.js";
-import { debug, info, error as logError, warn } from "../../utils/logger.js";
+import { logger } from "../../utils/logger.js";
 import type { BufferLike, ClipboardEvent, ImageContent } from "./types.js";
 
 export class VicinaeClipboardManager {
@@ -26,25 +26,32 @@ export class VicinaeClipboardManager {
 
     setSettings(settings: Gio.Settings): void {
         this.settings = settings;
-        info("Settings set in clipboard manager from external source");
+        logger.info("Settings set in clipboard manager from external source");
 
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
-            debug(`Current blocked applications: [${blockedApps.join(", ")}]`);
+            logger.debug(
+                `Current blocked applications: [${blockedApps.join(", ")}]`,
+            );
         } catch (err) {
-            logError("Error reading blocked applications from settings", err);
+            logger.error(
+                "Error reading blocked applications from settings",
+                err,
+            );
         }
     }
 
     updateSettings(settings: Gio.Settings): void {
         this.settings = settings;
-        info("Settings updated in clipboard manager");
+        logger.info("Settings updated in clipboard manager");
 
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
-            debug(`Updated blocked applications: [${blockedApps.join(", ")}]`);
+            logger.debug(
+                `Updated blocked applications: [${blockedApps.join(", ")}]`,
+            );
         } catch (err) {
-            logError(
+            logger.error(
                 "Error reading updated blocked applications from settings",
                 err,
             );
@@ -53,7 +60,7 @@ export class VicinaeClipboardManager {
 
     private isApplicationBlocked(sourceApp: string): boolean {
         if (!this.settings) {
-            warn(
+            logger.warn(
                 "No settings available in clipboard manager - blocking logic disabled",
             );
             return false; // If no settings, don't block anything
@@ -61,7 +68,7 @@ export class VicinaeClipboardManager {
 
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
-            debug(
+            logger.debug(
                 `Checking if ${sourceApp} is blocked. Blocked apps list: [${blockedApps.join(", ")}]`,
             );
 
@@ -74,18 +81,18 @@ export class VicinaeClipboardManager {
             );
 
             if (isBlocked) {
-                debug(
+                logger.debug(
                     `Application ${sourceApp} is blocked from clipboard access`,
                 );
             } else {
-                debug(
+                logger.debug(
                     `Application ${sourceApp} is NOT blocked (not in blocked apps list)`,
                 );
             }
 
             return isBlocked;
         } catch (error) {
-            logError(
+            logger.error(
                 "Error checking blocked applications in clipboard manager",
                 error,
             );
@@ -113,14 +120,14 @@ export class VicinaeClipboardManager {
 
                 this.queryClipboard();
 
-                info(
+                logger.info(
                     "Clipboard monitoring set up successfully using selection listener",
                 );
             } else {
-                logError("Failed to get selection instance");
+                logger.error("Failed to get selection instance");
             }
         } catch (error) {
-            logError("Error setting up clipboard monitoring", error);
+            logger.error("Error setting up clipboard monitoring", error);
         }
     }
 
@@ -158,7 +165,7 @@ export class VicinaeClipboardManager {
                 }
             }
         } catch (error) {
-            logError("Error querying clipboard", error);
+            logger.error("Error querying clipboard", error);
         }
     }
 
@@ -214,7 +221,7 @@ export class VicinaeClipboardManager {
                 );
             }
         } catch (error) {
-            logError("Error capturing image data", error);
+            logger.error("Error capturing image data", error);
         }
     }
 
@@ -226,7 +233,7 @@ export class VicinaeClipboardManager {
                 const finalMimeType = content.mimeType || detectedMimeType;
 
                 if (isValid) {
-                    debug(
+                    logger.debug(
                         `Processed image content: ${finalMimeType}, ${content.data.length} bytes`,
                     );
 
@@ -239,7 +246,7 @@ export class VicinaeClipboardManager {
 
                     this.processClipboardContent(binaryMarker, "image");
                 } else {
-                    warn(
+                    logger.warn(
                         `Invalid image buffer detected: ${content.data.length} bytes`,
                     );
                     this.processClipboardContent(
@@ -248,14 +255,14 @@ export class VicinaeClipboardManager {
                     );
                 }
             } else {
-                debug("No image data available in content object");
+                logger.debug("No image data available in content object");
                 this.processClipboardContent(
                     "[IMAGE_DATA_AVAILABLE]",
                     "system",
                 );
             }
         } catch (error) {
-            logError("Error processing image content", error);
+            logger.error("Error processing image content", error);
             this.processClipboardContent("[IMAGE_DATA_AVAILABLE]", "system");
         }
     }
@@ -271,7 +278,7 @@ export class VicinaeClipboardManager {
         mimeType: string,
     ) {
         this.binaryDataStore.set(marker, { data, mimeType });
-        debug(`Stored binary data: ${marker}`);
+        logger.debug(`Stored binary data: ${marker}`);
     }
 
     getBinaryData(
@@ -294,12 +301,12 @@ export class VicinaeClipboardManager {
                             const binaryMarker = `[BINARY_IMAGE:${mimeType}:${data.length}]`;
                             this.storeBinaryData(binaryMarker, data, mimeType);
 
-                            debug(
+                            logger.debug(
                                 `Extracted GLib.Bytes data: ${mimeType}, ${data.length} bytes`,
                             );
                             this.processClipboardContent(binaryMarker, "image");
                         } else {
-                            warn(
+                            logger.warn(
                                 `Invalid image buffer from get_data: ${data.length} bytes`,
                             );
                             this.processClipboardContent(
@@ -309,7 +316,7 @@ export class VicinaeClipboardManager {
                         }
                     }
                 } catch (getDataError) {
-                    logError("get_data failed", getDataError);
+                    logger.error("get_data failed", getDataError);
                 }
             }
 
@@ -325,18 +332,18 @@ export class VicinaeClipboardManager {
                             const binaryMarker = `[BINARY_IMAGE:${mimeType}:${array.length}]`;
                             this.storeBinaryData(binaryMarker, array, mimeType);
 
-                            debug(
+                            logger.debug(
                                 `Extracted GLib.Bytes array data: ${mimeType}, ${array.length} bytes`,
                             );
                             this.processClipboardContent(binaryMarker, "image");
                         }
                     }
                 } catch (toArrayError) {
-                    logError("to_array failed", toArrayError);
+                    logger.error("to_array failed", toArrayError);
                 }
             }
         } catch (error) {
-            logError("Error extracting GLib.Bytes data", error);
+            logger.error("Error extracting GLib.Bytes data", error);
         }
     }
 
@@ -379,7 +386,7 @@ export class VicinaeClipboardManager {
             isBlocked &&
             this.shouldBlockContentType(event.contentType, metadata.mimeType);
 
-        debug("🎯 CLIPBOARD EVENT EMITTED", {
+        logger.debug("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
             content:
                 content.length > 100
@@ -400,7 +407,7 @@ export class VicinaeClipboardManager {
         });
 
         if (shouldBlock) {
-            debug(
+            logger.debug(
                 `🚫 Clipboard access blocked for application: ${metadata.sourceApp} (${event.contentType}) - Event not forwarded to listeners`,
             );
             return;
@@ -409,21 +416,21 @@ export class VicinaeClipboardManager {
             try {
                 listener(event);
             } catch (error) {
-                logError("❌ Error in clipboard event listener", error);
+                logger.error("❌ Error in clipboard event listener", error);
             }
         });
     }
 
     onClipboardChange(listener: (event: ClipboardEvent) => void): void {
         this.eventListeners.push(listener);
-        debug("👂 Clipboard change listener added");
+        logger.debug("👂 Clipboard change listener added");
     }
 
     removeClipboardListener(listener: (event: ClipboardEvent) => void): void {
         const index = this.eventListeners.indexOf(listener);
         if (index > -1) {
             this.eventListeners.splice(index, 1);
-            debug("Clipboard change listener removed");
+            logger.debug("Clipboard change listener removed");
         }
     }
 
@@ -440,7 +447,7 @@ export class VicinaeClipboardManager {
                 this.currentContent = content;
                 this.emitClipboardEvent(content, "user");
             } catch (error) {
-                logError("Error setting clipboard content", error);
+                logger.error("Error setting clipboard content", error);
             }
         }
     }
@@ -458,7 +465,10 @@ export class VicinaeClipboardManager {
                 this.selection.disconnect(this._selectionOwnerChangedId);
                 this._selectionOwnerChangedId = null;
             } catch (edit_error) {
-                logError("Error disconnecting selection listener", edit_error);
+                logger.error(
+                    "Error disconnecting selection listener",
+                    edit_error,
+                );
             }
         }
 
@@ -466,6 +476,6 @@ export class VicinaeClipboardManager {
         this.currentContent = "";
         this.clipboard = null;
         this.selection = null;
-        info("Clipboard manager destroyed");
+        logger.info("Clipboard manager destroyed");
     }
 }

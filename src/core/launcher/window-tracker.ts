@@ -1,6 +1,6 @@
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
-import { debug, info, error as logError } from "../../utils/logger.js";
+import { logger } from "../../utils/logger.js";
 
 declare const global: {
     display: Meta.Display;
@@ -35,9 +35,12 @@ export class WindowTracker {
 
             // Handle existing windows
             this.scanExistingWindows();
-            info("WindowTracker: Window tracking enabled");
+            logger.info("WindowTracker: Window tracking enabled");
         } catch (error) {
-            logError("WindowTracker: Error enabling window tracking", error);
+            logger.error(
+                "WindowTracker: Error enabling window tracking",
+                error,
+            );
             throw error;
         }
     }
@@ -60,7 +63,7 @@ export class WindowTracker {
                     }
                 } catch (_error) {
                     // Window might be already destroyed, which is expected
-                    debug(
+                    logger.debug(
                         `WindowTracker: Signal already disconnected for window ${windowId}`,
                     );
                 }
@@ -71,13 +74,13 @@ export class WindowTracker {
         this.windowValidators.clear();
         this.trackedWindows.clear();
         this.isDestroying = false;
-        info("WindowTracker: Window tracking disabled");
+        logger.info("WindowTracker: Window tracking disabled");
     }
 
     private scanExistingWindows() {
         try {
             const windowActors = global.get_window_actors();
-            debug(
+            logger.debug(
                 `WindowTracker: Scanning ${windowActors.length} existing windows`,
             );
 
@@ -85,17 +88,22 @@ export class WindowTracker {
                 if (actor?.meta_window) {
                     this.handleNewWindow(actor.meta_window);
                 } else {
-                    debug("WindowTracker: Skipping invalid window actor");
+                    logger.debug(
+                        "WindowTracker: Skipping invalid window actor",
+                    );
                 }
             });
         } catch (error) {
-            logError("WindowTracker: Error scanning existing windows", error);
+            logger.error(
+                "WindowTracker: Error scanning existing windows",
+                error,
+            );
         }
     }
 
     private handleNewWindow(window: Meta.Window) {
         if (this.isDestroying || !this.isValidWindow(window)) {
-            debug(
+            logger.debug(
                 "WindowTracker: Invalid window object or destroying, skipping",
             );
             return;
@@ -107,7 +115,7 @@ export class WindowTracker {
             const windowId = window.get_id();
 
             if (!wmClass || !title || windowId <= 0) {
-                debug("WindowTracker: Invalid window properties", {
+                logger.debug("WindowTracker: Invalid window properties", {
                     wmClass,
                     title,
                     windowId,
@@ -144,7 +152,7 @@ export class WindowTracker {
                             });
                         } catch (_unmanagedError) {
                             // If neither signal exists, log and continue without signal tracking
-                            debug(
+                            logger.debug(
                                 `WindowTracker: No suitable destroy signal for window ${windowId}, skipping signal connection`,
                             );
                         }
@@ -154,13 +162,13 @@ export class WindowTracker {
                         this.windowDestroySignalIds.set(windowId, signalId);
                     }
 
-                    debug(
+                    logger.debug(
                         `WindowTracker: Tracking new window ${windowId} (${wmClass})`,
                     );
                 }
             }
         } catch (error) {
-            logError("WindowTracker: Error handling new window", {
+            logger.error("WindowTracker: Error handling new window", {
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
                 windowId: window?.get_id?.() || "unknown",
@@ -219,7 +227,9 @@ export class WindowTracker {
             // Clean up the destroy signal handler - don't try to disconnect from destroyed window
             this.windowDestroySignalIds.delete(windowId);
 
-            debug(`WindowTracker: Untracking destroyed window ${windowId}`);
+            logger.debug(
+                `WindowTracker: Untracking destroyed window ${windowId}`,
+            );
         }
     }
 
@@ -233,7 +243,10 @@ export class WindowTracker {
                 }
             }
         } catch (error) {
-            logError(`WindowTracker: Error finding window ${windowId}`, error);
+            logger.error(
+                `WindowTracker: Error finding window ${windowId}`,
+                error,
+            );
         }
         return null;
     }
@@ -252,7 +265,7 @@ export class WindowTracker {
      */
     private centerWindow(window: Meta.Window): void {
         if (this.isDestroying || !this.isWindowValid(window)) {
-            debug(
+            logger.debug(
                 "WindowTracker: Skipping center window - window invalid or destroying",
             );
             return;
@@ -264,13 +277,13 @@ export class WindowTracker {
             // Move the window to center position
             window.move_frame(true, x, y);
 
-            debug(
+            logger.debug(
                 `WindowTracker: Centered window ${window.get_id()} at (${Math.round(
                     x,
                 )}, ${Math.round(y)})`,
             );
         } catch (error) {
-            logError("WindowTracker: Error centering window", error);
+            logger.error("WindowTracker: Error centering window", error);
         }
     }
 
