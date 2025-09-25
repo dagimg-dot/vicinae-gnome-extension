@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <template class="TypescriptTemplateAboutPage" parent="AdwPreferencesPage">
+  <template class="VicinaeAboutPage" parent="AdwPreferencesPage">
     <property name="title" translatable="true">About</property>
     <property name="icon-name">dialog-information-symbolic</property>
     <child>
