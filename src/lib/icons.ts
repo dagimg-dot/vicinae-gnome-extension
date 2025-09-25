@@ -1,6 +1,6 @@
 import Gio from "gi://Gio";
 
-const ICONS = ["vicinae-symbolic"] as const;
+const ICONS = ["vicinae", "github"] as const;
 type ICON = (typeof ICONS)[number];
 
 export class Icons {

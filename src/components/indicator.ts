@@ -19,7 +19,7 @@ export class VicinaeIndicator {
     private setupUI() {
         new Icons(this.extension.path);
 
-        const vicinaeIcon = Icons.get("vicinae-symbolic");
+        const vicinaeIcon = Icons.get("vicinae");
 
         const icon = new St.Icon({
             gicon: vicinaeIcon,

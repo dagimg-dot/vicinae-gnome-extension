@@ -24,4 +24,5 @@ export interface AboutPageChildren {
 export interface Credit {
     title: string;
     subtitle: string;
+    github?: string; // Optional GitHub username
 }

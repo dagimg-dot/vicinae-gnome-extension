@@ -12,6 +12,17 @@ export const CREDITS: Credit[] = [
     {
         title: "Dagim G. Astatkie",
         subtitle: "Original Author",
+        github: "dagimg-dot",
+    },
+    {
+        title: "Fernando Carletti",
+        subtitle: "Contributor",
+        github: "fernandocarletti",
+    },
+    {
+        title: "Tommy Brunn",
+        subtitle: "Contributor",
+        github: "Nevon",
     },
 ];
 
@@ -58,7 +69,7 @@ export const AboutPage = GObject.registerClass(
 
             new Icons(metadata.path);
 
-            const vicinaeIcon = Icons.get("vicinae-symbolic") as Gio.Icon;
+            const vicinaeIcon = Icons.get("vicinae") as Gio.Icon;
 
             children._extensionIcon.set_from_gicon(vicinaeIcon);
 
@@ -85,10 +96,10 @@ export const AboutPage = GObject.registerClass(
 
             children._extensionLicense.buffer.set_text(LICENSE, -1);
 
-            this.renderCredits(children);
+            this.renderCredits(children, metadata.path);
         }
 
-        private renderCredits(children: AboutPageChildren) {
+        private renderCredits(children: AboutPageChildren, path: string) {
             const creditsExpander = children._creditsRow;
 
             CREDITS.forEach((credit) => {
@@ -96,8 +107,39 @@ export const AboutPage = GObject.registerClass(
                     title: credit.title,
                     subtitle: credit.subtitle,
                 });
+
+                // Add GitHub icon if username is available
+                if (credit.github) {
+                    new Icons(path);
+                    const githubIcon = Icons.get("github") as Gio.Icon;
+
+                    creditRow.add_suffix(
+                        new Gtk.Image({
+                            gicon: githubIcon,
+                            pixel_size: 16,
+                        }),
+                    );
+
+                    // Make the row clickable
+                    creditRow.set_activatable(true);
+                    creditRow.connect("activated", () => {
+                        this.openGitHubProfile(credit.github);
+                    });
+                }
+
                 creditsExpander.add_row(creditRow);
             });
+        }
+
+        private openGitHubProfile(githubUsername: string | undefined) {
+            if (!githubUsername) return;
+
+            const githubUrl = `https://github.com/${githubUsername}`;
+            try {
+                Gtk.show_uri(null, githubUrl, Gdk.CURRENT_TIME);
+            } catch (error) {
+                console.error("Failed to open GitHub profile:", error);
+            }
         }
     },
 );
