@@ -15,7 +15,7 @@
   },
   "scripts": {
     "dev": "bun check && ./scripts/build.sh -r",
-    "dev:nested": "bun build:install && env MUTTER_DEBUG_DUMMY_MODE_SPECS=1500x900 dbus-run-session -- gnome-shell --nested --wayland",
+    "dev:nested": "bun build:install && env MUTTER_DEBUG_DUMMY_MODE_SPECS=1500x900 ./scripts/dev-run.sh",
     "build": "./scripts/build.sh",
     "build:install": "bun check && ./scripts/build.sh --install",
     "setup": "./scripts/setup.sh",

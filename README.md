@@ -3,7 +3,7 @@
 </div>
 
 <p align="center" style="margin-bottom: 30px;">
-<img src="https://raw.githubusercontent.com/dagimg-dot/vicinae-gnome-extension/main/src/assets/icons/vicinae-symbolic.svg" alt="Vicinae" width="100">
+<img src="https://raw.githubusercontent.com/dagimg-dot/vicinae-gnome-extension/main/src/assets/icons/vicinae.svg" alt="Vicinae" width="100">
 </p>
 
 <!-- download badge -->
