@@ -46,8 +46,16 @@ export default class Vicinae extends Extension {
             );
             this.clipboardManager.setSettings(this.settings);
 
-            // Initialize D-Bus services with extension reference and clipboard manager
-            this.dbusManager = new DBusManager(this, this.clipboardManager);
+            // Get app class for window tracking
+            const appClass =
+                this.settings.get_string("launcher-app-class") || "vicinae";
+
+            // Initialize D-Bus services with extension reference, clipboard manager, and app class
+            this.dbusManager = new DBusManager(
+                appClass,
+                this,
+                this.clipboardManager,
+            );
             this.dbusManager.exportServices();
 
             // Initialize launcher manager

@@ -9,6 +9,7 @@ import { VicinaeWindowManager } from "../../windows/window-manager.js";
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
     private dbusObject: Gio.DBusExportedObject | null = null;
+    private appClass: string;
 
     // Signal connection IDs for cleanup
     private windowOpenedSignalId: number = 0;
@@ -23,8 +24,9 @@ export class WindowsService {
     private previousFocusedWindow: { id: number; wmClass: string } | null =
         null;
 
-    constructor(clipboardManager: VicinaeClipboardManager) {
+    constructor(clipboardManager: VicinaeClipboardManager, appClass: string) {
         this.windowManager = new VicinaeWindowManager(clipboardManager);
+        this.appClass = appClass;
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -81,7 +83,7 @@ export class WindowsService {
                             // Track previous focused window
                             const currentWmClass =
                                 focusWindow.get_wm_class() || "";
-                            if (!this.isVicinaeWindow(currentWmClass)) {
+                            if (!this.isTargetWindow(currentWmClass)) {
                                 // Only update previous window if current is not Vicinae
                                 this.previousFocusedWindow = {
                                     id: focusWindow.get_id(),
@@ -555,10 +557,10 @@ export class WindowsService {
         return success;
     }
 
-    private isVicinaeWindow(wmClass: string): boolean {
+    private isTargetWindow(wmClass: string): boolean {
         return (
-            wmClass.toLowerCase().includes("vicinae") ||
-            "vicinae".includes(wmClass.toLowerCase())
+            wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
+            this.appClass.toLowerCase().includes(wmClass.toLowerCase())
         );
     }
 
@@ -574,7 +576,7 @@ export class WindowsService {
                 focusedWindow.meta_window.get_wm_class() || "";
 
             // If current focused window is Vicinae, return previous window
-            if (this.isVicinaeWindow(currentWmClass)) {
+            if (this.isTargetWindow(currentWmClass)) {
                 if (this.previousFocusedWindow) {
                     logger.debug(
                         `GetFocusedWindowSync: Vicinae focused, returning previous window: ${this.previousFocusedWindow.wmClass}`,
