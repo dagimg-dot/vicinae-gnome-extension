@@ -1,5 +1,6 @@
+import Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
-import type GLib from "gi://GLib";
+import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
@@ -11,16 +12,22 @@ import {
 import { logger } from "../../utils/logger.js";
 import type { BufferLike, ClipboardEvent, ImageContent } from "./types.js";
 
+// VirtualKeyboard will be passed from the main extension
+
 export class VicinaeClipboardManager {
     private eventListeners: ((event: ClipboardEvent) => void)[] = [];
+    private virtualKeyboard: Clutter.VirtualInputDevice;
+
     private currentContent: string = "";
     private clipboard: St.Clipboard | null = null;
     private selection: Meta.Selection | null = null;
     private _selectionOwnerChangedId: number | null = null;
     private _debouncing: number = 0;
     private settings: Gio.Settings | null = null;
+    public pasteHackCallbackId: number | null = null;
 
-    constructor() {
+    constructor(virtualKeyboard: Clutter.VirtualInputDevice) {
+        this.virtualKeyboard = virtualKeyboard;
         this.setupClipboardMonitoring();
     }
 
@@ -69,7 +76,9 @@ export class VicinaeClipboardManager {
         try {
             const blockedApps = this.settings.get_strv("blocked-applications");
             logger.debug(
-                `Checking if ${sourceApp} is blocked. Blocked apps list: [${blockedApps.join(", ")}]`,
+                `Checking if ${sourceApp} is blocked. Blocked apps list: [${blockedApps.join(
+                    ", ",
+                )}]`,
             );
 
             const isBlocked = blockedApps.some(
@@ -457,6 +466,43 @@ export class VicinaeClipboardManager {
         source: "user" | "system" | "image" = "user",
     ): void {
         this.emitClipboardEvent(content, source);
+    }
+
+    triggerKeyboardPaste() {
+        logger.debug("Trigger keyboard paste called");
+        this.pasteHackCallbackId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            1, // Just post to the end of the event loop
+            () => {
+                const SHIFT_L = 42;
+                const INSERT = 110;
+
+                const eventTime = Clutter.get_current_event_time() * 1000;
+                this.virtualKeyboard.notify_key(
+                    eventTime,
+                    SHIFT_L,
+                    Clutter.KeyState.PRESSED,
+                );
+                this.virtualKeyboard.notify_key(
+                    eventTime,
+                    INSERT,
+                    Clutter.KeyState.PRESSED,
+                );
+                this.virtualKeyboard.notify_key(
+                    eventTime,
+                    INSERT,
+                    Clutter.KeyState.RELEASED,
+                );
+                this.virtualKeyboard.notify_key(
+                    eventTime,
+                    SHIFT_L,
+                    Clutter.KeyState.RELEASED,
+                );
+
+                this.pasteHackCallbackId = null;
+                return false;
+            },
+        );
     }
 
     destroy(): void {

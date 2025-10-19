@@ -69,6 +69,15 @@ export const WINDOWS_DBUS_IFACE = `
          <arg type="u" direction="in" name="workspaceIndex" />
          <arg type="s" direction="out" name="windows" />
       </method>
+      <method name="SendShortcut">
+         <arg type="u" direction="in" name="winid" />
+         <arg type="s" direction="in" name="key" />
+         <arg type="s" direction="in" name="modifiers" />
+         <arg type="b" direction="out" name="success" />
+      </method>
+      <method name="GetFocusedWindowSync">
+         <arg type="s" direction="out" name="window" />
+      </method>
       <signal name="openwindow">
          <arg type="s" name="windowAddress" />
          <arg type="s" name="workspaceName" />

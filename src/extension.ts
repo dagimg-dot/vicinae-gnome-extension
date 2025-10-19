@@ -1,3 +1,4 @@
+import Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
 import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
@@ -6,6 +7,19 @@ import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
 import { initializeLogger, logger } from "./utils/logger.js";
+
+// Create VirtualKeyboard in extension context (similar to gnome-clipboard-history)
+const getVirtualKeyboard = (() => {
+    let virtualKeyboard: Clutter.VirtualInputDevice;
+    return () => {
+        if (!virtualKeyboard) {
+            virtualKeyboard = Clutter.get_default_backend()
+                .get_default_seat()
+                .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        }
+        return virtualKeyboard;
+    };
+})();
 
 export default class Vicinae extends Extension {
     private indicator!: VicinaeIndicator | null;
@@ -26,8 +40,10 @@ export default class Vicinae extends Extension {
             // Initialize logger with settings
             initializeLogger(this.settings);
 
-            // Initialize clipboard manager with settings
-            this.clipboardManager = new VicinaeClipboardManager();
+            // Initialize clipboard manager with settings and VirtualKeyboard
+            this.clipboardManager = new VicinaeClipboardManager(
+                getVirtualKeyboard(),
+            );
             this.clipboardManager.setSettings(this.settings);
 
             // Initialize D-Bus services with extension reference and clipboard manager
@@ -108,10 +124,18 @@ export default class Vicinae extends Extension {
             this.settings.get_string("launcher-app-class") || "vicinae";
 
         if (autoClose) {
-            this.launcherManager = new LauncherManager({
-                appClass: appClass,
-                autoCloseOnFocusLoss: autoClose,
-            });
+            if (!this.clipboardManager) {
+                throw new Error("Clipboard manager is not initialized");
+            }
+
+            this.launcherManager = new LauncherManager(
+                {
+                    appClass: appClass,
+                    autoCloseOnFocusLoss: autoClose,
+                },
+                this.clipboardManager,
+            );
+
             await this.launcherManager.enable();
             logger.info("Launcher manager initialized and enabled");
         }

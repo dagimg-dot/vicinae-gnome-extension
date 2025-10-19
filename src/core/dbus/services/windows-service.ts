@@ -2,6 +2,8 @@ import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../../utils/logger.js";
+import { getFocusedWindow } from "../../../utils/window-utils.js";
+import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
 
 export class WindowsService {
@@ -17,8 +19,12 @@ export class WindowsService {
     private windowDestroySignalIds: Map<number, number> = new Map();
     private windowSizeSignalIds: Map<number, number> = new Map();
 
-    constructor() {
-        this.windowManager = new VicinaeWindowManager();
+    // Track previous focused window for paste-to-active-app functionality
+    private previousFocusedWindow: { id: number; wmClass: string } | null =
+        null;
+
+    constructor(clipboardManager: VicinaeClipboardManager) {
+        this.windowManager = new VicinaeWindowManager(clipboardManager);
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -72,6 +78,17 @@ export class WindowsService {
                     GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                         const focusWindow = global.display.focus_window;
                         if (focusWindow) {
+                            // Track previous focused window
+                            const currentWmClass =
+                                focusWindow.get_wm_class() || "";
+                            if (!this.isVicinaeWindow(currentWmClass)) {
+                                // Only update previous window if current is not Vicinae
+                                this.previousFocusedWindow = {
+                                    id: focusWindow.get_id(),
+                                    wmClass: currentWmClass,
+                                };
+                            }
+
                             this.emitFocusWindow(
                                 focusWindow.get_id().toString(),
                             );
@@ -522,6 +539,74 @@ export class WindowsService {
         } catch (error) {
             logger.error("D-Bus: Error getting workspace windows", error);
             throw error;
+        }
+    }
+
+    SendShortcut(winid: number, key: string, modifiers: string): boolean {
+        let success = false;
+
+        try {
+            success = this.windowManager.sendShortcut(winid, key, modifiers);
+        } catch (error) {
+            logger.error("D-Bus: Error sending shortcut", error);
+            return false;
+        }
+
+        return success;
+    }
+
+    private isVicinaeWindow(wmClass: string): boolean {
+        return (
+            wmClass.toLowerCase().includes("vicinae") ||
+            "vicinae".includes(wmClass.toLowerCase())
+        );
+    }
+
+    GetFocusedWindowSync(): string {
+        try {
+            const focusedWindow = getFocusedWindow();
+            if (!focusedWindow) {
+                logger.debug("GetFocusedWindowSync: No focused window");
+                return JSON.stringify(null);
+            }
+
+            const currentWmClass =
+                focusedWindow.meta_window.get_wm_class() || "";
+
+            // If current focused window is Vicinae, return previous window
+            if (this.isVicinaeWindow(currentWmClass)) {
+                if (this.previousFocusedWindow) {
+                    logger.debug(
+                        `GetFocusedWindowSync: Vicinae focused, returning previous window: ${this.previousFocusedWindow.wmClass}`,
+                    );
+
+                    // Get full window details for the previous window
+                    const windowDetails = this.windowManager.details(
+                        this.previousFocusedWindow.id,
+                    );
+
+                    return JSON.stringify(windowDetails);
+                } else {
+                    logger.debug(
+                        "GetFocusedWindowSync: Vicinae focused but no previous window",
+                    );
+
+                    return JSON.stringify(null);
+                }
+            }
+
+            logger.debug(
+                `GetFocusedWindowSync: Returning current focused window: ${currentWmClass}`,
+            );
+
+            const windowDetails = this.windowManager.details(
+                focusedWindow.meta_window.get_id(),
+            );
+
+            return JSON.stringify(windowDetails);
+        } catch (error) {
+            logger.error("D-Bus: Error in GetFocusedWindowSync", error);
+            return JSON.stringify(null);
         }
     }
 

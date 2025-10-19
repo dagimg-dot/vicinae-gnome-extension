@@ -1,9 +1,12 @@
+import GLib from "gi://GLib";
 import Meta from "gi://Meta";
+import { logger } from "../../utils/logger.js";
 import {
     getCurrentTime,
     getWindowById,
     isMaximized,
 } from "../../utils/window-utils.js";
+import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import type {
     FrameBounds,
     FrameRect,
@@ -27,6 +30,12 @@ interface MetaWindowWithExtras extends Meta.Window {
 }
 
 export class VicinaeWindowManager implements WindowManager {
+    private clipboardManager: VicinaeClipboardManager;
+
+    constructor(clipboardManager: VicinaeClipboardManager) {
+        this.clipboardManager = clipboardManager;
+    }
+
     list(): WindowInfo[] {
         const windowActors = global.get_window_actors();
         const workspaceManager = global.workspace_manager;
@@ -307,5 +316,60 @@ export class VicinaeWindowManager implements WindowManager {
             throw new Error("No active workspace found");
         }
         return workspace;
+    }
+
+    sendShortcut(winid: number, key: string, modifiers: string): boolean {
+        const win = getWindowById(winid)?.meta_window;
+
+        if (!win) {
+            logger.error(`Window ${winid} not found`);
+            return false;
+        }
+
+        // Activate the window to ensure it is focused
+        try {
+            win.activate(getCurrentTime());
+        } catch (error) {
+            logger.error(`Failed to activate window ${winid}: ${error}`);
+            return false;
+        }
+
+        const modifiersArray = modifiers.split("|");
+
+        const isNormalPaste =
+            key === "v" &&
+            modifiersArray.length === 1 &&
+            modifiersArray[0] === "CONTROL";
+        const isShiftPaste =
+            key === "v" &&
+            modifiersArray.length === 2 &&
+            modifiersArray[0] === "CONTROL" &&
+            modifiersArray[1] === "SHIFT";
+
+        if (isNormalPaste || isShiftPaste) {
+            if (!this.clipboardManager) {
+                logger.error(
+                    "No clipboard manager available for paste operation",
+                );
+                return false;
+            }
+
+            // Wait for 100ms to ensure the window is focused
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                logger.debug(
+                    `Sending keyboard paste for window ${winid} ${key} ${modifiers}`,
+                );
+                this.clipboardManager.triggerKeyboardPaste();
+                return false;
+            });
+
+            logger.debug(
+                `Triggered keyboard paste for window ${winid} ${key} ${modifiers}`,
+            );
+            return true;
+        } else {
+            logger.error("Failed to send shortcut");
+            return false;
+        }
     }
 }

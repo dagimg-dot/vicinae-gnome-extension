@@ -1,5 +1,6 @@
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
+import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
@@ -26,8 +27,11 @@ export class LauncherManager {
     private isEnabled = false;
     private trackedWindows = new Set<number>();
 
-    constructor(config: LauncherConfig) {
-        this.windowManager = new VicinaeWindowManager();
+    constructor(
+        config: LauncherConfig,
+        clipboardManager: VicinaeClipboardManager,
+    ) {
+        this.windowManager = new VicinaeWindowManager(clipboardManager);
         this.config = config;
         this.windowTracker = new WindowTracker(
             config.appClass,
