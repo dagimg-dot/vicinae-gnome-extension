@@ -8,7 +8,7 @@ import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
 import { initializeLogger, logger } from "./utils/logger.js";
 
-// Create VirtualKeyboard in extension context (similar to gnome-clipboard-history)
+// Create VirtualKeyboard in extension context
 const getVirtualKeyboard = (() => {
     let virtualKeyboard: Clutter.VirtualInputDevice;
     return () => {
