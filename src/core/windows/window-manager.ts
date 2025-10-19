@@ -32,9 +32,18 @@ interface MetaWindowWithExtras extends Meta.Window {
 export class VicinaeWindowManager implements WindowManager {
     private clipboardManager: VicinaeClipboardManager;
     private PASTE_DELAY = 100;
+    private appClass: string;
 
-    constructor(clipboardManager: VicinaeClipboardManager) {
+    constructor(clipboardManager: VicinaeClipboardManager, appClass: string) {
+        this.appClass = appClass;
         this.clipboardManager = clipboardManager;
+    }
+
+    isTargetWindow(wmClass: string): boolean {
+        return (
+            wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
+            this.appClass.toLowerCase().includes(wmClass.toLowerCase())
+        );
     }
 
     list(): WindowInfo[] {

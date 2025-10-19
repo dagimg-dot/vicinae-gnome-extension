@@ -9,7 +9,6 @@ import { VicinaeWindowManager } from "../../windows/window-manager.js";
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
     private dbusObject: Gio.DBusExportedObject | null = null;
-    private appClass: string;
 
     // Signal connection IDs for cleanup
     private windowOpenedSignalId: number = 0;
@@ -25,8 +24,10 @@ export class WindowsService {
         null;
 
     constructor(clipboardManager: VicinaeClipboardManager, appClass: string) {
-        this.windowManager = new VicinaeWindowManager(clipboardManager);
-        this.appClass = appClass;
+        this.windowManager = new VicinaeWindowManager(
+            clipboardManager,
+            appClass,
+        );
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -83,7 +84,11 @@ export class WindowsService {
                             // Track previous focused window
                             const currentWmClass =
                                 focusWindow.get_wm_class() || "";
-                            if (!this.isTargetWindow(currentWmClass)) {
+                            if (
+                                !this.windowManager.isTargetWindow(
+                                    currentWmClass,
+                                )
+                            ) {
                                 // Only update previous window if current is not Vicinae
                                 this.previousFocusedWindow = {
                                     id: focusWindow.get_id(),
@@ -369,7 +374,13 @@ export class WindowsService {
             GLib.usleep(1000); // 1ms delay
 
             const windows = this.windowManager.list();
-            return JSON.stringify(windows);
+
+            // Filter out Vicinae launcher window to prevent it from appearing in the window list
+            const filteredWindows = windows.filter(
+                (window) => !this.windowManager.isTargetWindow(window.wm_class),
+            );
+
+            return JSON.stringify(filteredWindows);
         } catch (error) {
             logger.error("D-Bus: Error listing windows", error);
             throw error;
@@ -557,13 +568,6 @@ export class WindowsService {
         return success;
     }
 
-    private isTargetWindow(wmClass: string): boolean {
-        return (
-            wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
-            this.appClass.toLowerCase().includes(wmClass.toLowerCase())
-        );
-    }
-
     GetFocusedWindowSync(): string {
         try {
             const focusedWindow = getFocusedWindow();
@@ -576,7 +580,7 @@ export class WindowsService {
                 focusedWindow.meta_window.get_wm_class() || "";
 
             // If current focused window is Vicinae, return previous window
-            if (this.isTargetWindow(currentWmClass)) {
+            if (this.windowManager.isTargetWindow(currentWmClass)) {
                 if (this.previousFocusedWindow) {
                     logger.debug(
                         `GetFocusedWindowSync: Vicinae focused, returning previous window: ${this.previousFocusedWindow.wmClass}`,
