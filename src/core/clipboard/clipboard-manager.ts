@@ -375,15 +375,33 @@ export class VicinaeClipboardManager {
 
     // Method to emit clipboard change events
     private emitClipboardEvent(
-        content: string,
+        content: string | Uint8Array,
         source: "user" | "system" | "image" = "user",
+        mimeType?: string,
     ) {
+        // Convert content to string for the event, handling binary data
+        let contentString: string;
+        let contentType: "text" | "image" = "text";
+
+        if (content instanceof Uint8Array) {
+            // For binary data, create a marker similar to how we handle images
+            if (mimeType?.startsWith("image/")) {
+                contentType = "image";
+                contentString = `[BINARY_IMAGE:${mimeType}:${content.length}]`;
+            } else {
+                contentString = `[BINARY_DATA:${mimeType}:${content.length}]`;
+            }
+        } else {
+            contentString = content;
+            contentType = source === "image" ? "image" : "text";
+        }
+
         const event: ClipboardEvent = {
             type: "clipboard-changed",
-            content,
+            content: contentString,
             timestamp: Date.now(),
             source,
-            contentType: source === "image" ? "image" : "text",
+            contentType,
         };
 
         // Get comprehensive metadata using the utility function
@@ -398,10 +416,15 @@ export class VicinaeClipboardManager {
         logger.debug("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
             content:
-                content.length > 100
-                    ? `${content.substring(0, 100)}...`
-                    : content,
-            contentLength: content.length,
+                contentString.length > 100
+                    ? `${contentString.substring(0, 100)}...`
+                    : contentString,
+            contentLength:
+                content instanceof Uint8Array
+                    ? content.length
+                    : contentString.length,
+            originalContentType:
+                content instanceof Uint8Array ? "binary" : "string",
             timestamp: new Date(event.timestamp).toISOString(),
             source: event.source,
             listeners: this.eventListeners.length,
@@ -458,6 +481,47 @@ export class VicinaeClipboardManager {
             } catch (error) {
                 logger.error("Error setting clipboard content", error);
             }
+        }
+    }
+
+    setContentBinary(data: Uint8Array, mimeType: string): void {
+        if (this.clipboard) {
+            try {
+                logger.debug(
+                    `Setting binary clipboard content: ${mimeType}, ${data.length} bytes`,
+                );
+
+                // Use St.Clipboard.set_content for arbitrary MIME types
+                this.clipboard.set_content(
+                    St.ClipboardType.CLIPBOARD,
+                    mimeType,
+                    data,
+                );
+                this.clipboard.set_content(
+                    St.ClipboardType.PRIMARY,
+                    mimeType,
+                    data,
+                );
+
+                // For text content, also set PRIMARY for better compatibility
+                if (mimeType.startsWith("text/")) {
+                    const text = new TextDecoder().decode(data);
+                    this.clipboard.set_content(
+                        St.ClipboardType.PRIMARY,
+                        "text/plain",
+                        new TextEncoder().encode(text),
+                    );
+                }
+
+                this.emitClipboardEvent(data, "user", mimeType);
+                logger.debug(
+                    `Binary clipboard content set successfully for ${mimeType}`,
+                );
+            } catch (error) {
+                logger.error("Error setting binary clipboard content", error);
+            }
+        } else {
+            logger.error("Clipboard not available for setContentBinary");
         }
     }
 

@@ -18,6 +18,10 @@ export const CLIPBOARD_DBUS_IFACE = `
       <method name="SetContent">
          <arg type="s" direction="in" name="content" />
       </method>
+      <method name="SetContentBinary">
+         <arg type="ay" direction="in" name="content" />
+         <arg type="s" direction="in" name="mimeType" />
+      </method>
       <signal name="ClipboardChanged">
          <arg type="ay" name="content" />
          <arg type="s" name="mimeType" />

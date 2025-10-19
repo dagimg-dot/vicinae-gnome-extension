@@ -31,6 +31,7 @@ interface MetaWindowWithExtras extends Meta.Window {
 
 export class VicinaeWindowManager implements WindowManager {
     private clipboardManager: VicinaeClipboardManager;
+    private PASTE_DELAY = 100;
 
     constructor(clipboardManager: VicinaeClipboardManager) {
         this.clipboardManager = clipboardManager;
@@ -318,21 +319,33 @@ export class VicinaeWindowManager implements WindowManager {
         return workspace;
     }
 
+    pasteToFocusedWindow(
+        winid: number,
+        key: string,
+        modifiers: string,
+    ): boolean {
+        if (!this.clipboardManager) {
+            logger.error("No clipboard manager available for paste operation");
+            return false;
+        }
+
+        // Wait longer to ensure window is focused and clipboard has propagated
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, this.PASTE_DELAY, () => {
+            logger.debug(
+                `Sending keyboard paste for window ${winid} ${key} ${modifiers} after ${this.PASTE_DELAY}ms delay`,
+            );
+            this.clipboardManager.triggerKeyboardPaste();
+            return false;
+        });
+
+        logger.debug(
+            `Triggered keyboard paste for window ${winid} ${key} ${modifiers}`,
+        );
+        return true;
+    }
+
     sendShortcut(winid: number, key: string, modifiers: string): boolean {
-        const win = getWindowById(winid)?.meta_window;
-
-        if (!win) {
-            logger.error(`Window ${winid} not found`);
-            return false;
-        }
-
-        // Activate the window to ensure it is focused
-        try {
-            win.activate(getCurrentTime());
-        } catch (error) {
-            logger.error(`Failed to activate window ${winid}: ${error}`);
-            return false;
-        }
+        this.activate(winid);
 
         const modifiersArray = modifiers.split("|");
 
@@ -340,6 +353,7 @@ export class VicinaeWindowManager implements WindowManager {
             key === "v" &&
             modifiersArray.length === 1 &&
             modifiersArray[0] === "CONTROL";
+
         const isShiftPaste =
             key === "v" &&
             modifiersArray.length === 2 &&
@@ -347,28 +361,10 @@ export class VicinaeWindowManager implements WindowManager {
             modifiersArray[1] === "SHIFT";
 
         if (isNormalPaste || isShiftPaste) {
-            if (!this.clipboardManager) {
-                logger.error(
-                    "No clipboard manager available for paste operation",
-                );
-                return false;
-            }
-
-            // Wait for 100ms to ensure the window is focused
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-                logger.debug(
-                    `Sending keyboard paste for window ${winid} ${key} ${modifiers}`,
-                );
-                this.clipboardManager.triggerKeyboardPaste();
-                return false;
-            });
-
-            logger.debug(
-                `Triggered keyboard paste for window ${winid} ${key} ${modifiers}`,
-            );
-            return true;
+            return this.pasteToFocusedWindow(winid, key, modifiers);
         } else {
-            logger.error("Failed to send shortcut");
+            // TODO: Handle other shortcuts
+            logger.warn(`Unhandled shortcut: ${key} ${modifiers}`);
             return false;
         }
     }

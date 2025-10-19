@@ -208,6 +208,19 @@ export class ClipboardService {
         }
     }
 
+    // Method to set binary clipboard content
+    SetContentBinary(content: Uint8Array, mimeType: string): void {
+        try {
+            this.clipboardManager.setContentBinary(content, mimeType);
+        } catch (error) {
+            logger.error(
+                "D-Bus: Error setting binary clipboard content",
+                error,
+            );
+            throw error;
+        }
+    }
+
     // Method to get available MIME types
     GetClipboardMimeTypes(): string[] {
         try {
