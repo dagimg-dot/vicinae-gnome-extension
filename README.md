@@ -2,9 +2,11 @@
   <h1>Vicinae Gnome Extension</h1>
 </div>
 
+<a href="https://docs.vicinae.com">
 <p align="center" style="margin-bottom: 30px;">
 <img src="https://raw.githubusercontent.com/dagimg-dot/vicinae-gnome-extension/main/src/assets/icons/vicinae.svg" alt="Vicinae" width="100">
 </p>
+</a>
 
 <!-- download badge -->
   <p align="center" style="margin-bottom: 30px;">
@@ -24,10 +26,8 @@
 
 - Clipboard events and Window management APIs through DBus
 - Protect sensitive apps (like password managers) by blocking clipboard access
-- Smart launcher window that mimics layer-shell protocol:
-  - auto-centers
-  - stays on top
-  - gracefully closes when you click away
+- Launcher window that mimics layer-shell protocol which auto-centers, stays on top, and gracefully closes when you click away
+- Paste directly to focused window from vicinae clipboard history view
 
 ## Installation
 
