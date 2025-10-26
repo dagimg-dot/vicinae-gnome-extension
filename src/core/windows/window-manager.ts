@@ -40,6 +40,15 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     isTargetWindow(wmClass: string): boolean {
+        if (!wmClass) {
+            logger.debug("isTargetWindow: No wmClass provided");
+            return false;
+        }
+
+        logger.debug(
+            `isTargetWindow: wmClass: ${wmClass}, appClass: ${this.appClass}`,
+        );
+
         return (
             wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
             this.appClass.toLowerCase().includes(wmClass.toLowerCase())
@@ -59,8 +68,8 @@ export class VicinaeWindowManager implements WindowManager {
             return {
                 id: metaWindow.get_id(),
                 title: metaWindow.get_title(),
-                wm_class: metaWindow.get_wm_class(),
-                wm_class_instance: metaWindow.get_wm_class_instance(),
+                wm_class: metaWindow.get_wm_class() || "",
+                wm_class_instance: metaWindow.get_wm_class_instance() || "",
                 pid: metaWindow.get_pid(),
                 maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
                 display: metaWindow.get_display(),
@@ -106,8 +115,8 @@ export class VicinaeWindowManager implements WindowManager {
         const win = {
             id: metaWindow.get_id(),
             title: metaWindow.get_title(),
-            wm_class: metaWindow.get_wm_class(),
-            wm_class_instance: metaWindow.get_wm_class_instance(),
+            wm_class: metaWindow.get_wm_class() || "",
+            wm_class_instance: metaWindow.get_wm_class_instance() || "",
             pid: metaWindow.get_pid(),
             maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
             display: metaWindow.get_display(),
