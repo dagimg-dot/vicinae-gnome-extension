@@ -1,4 +1,6 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+
+set -e
 
 # ==============================================================================
 # This script builds the zip package for the extension. It compiles translations
