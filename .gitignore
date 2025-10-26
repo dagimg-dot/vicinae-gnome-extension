@@ -7,3 +7,8 @@ dist/
 gschemas.compiled
 locale/
 node_modules/
+.direnv
+.devenv
+.pre-commit-config.yaml
+result
+.DS_Store
