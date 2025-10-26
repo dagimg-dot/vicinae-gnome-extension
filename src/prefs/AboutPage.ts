@@ -29,6 +29,11 @@ export const CREDITS: Credit[] = [
         subtitle: "Contributor",
         github: "SiriusCrain",
     },
+    {
+        title: "Noa Virellia",
+        subtitle: "Contributor",
+        github: "AsterisMono",
+    },
 ];
 
 const LICENSE = `MIT License
