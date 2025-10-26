@@ -1,4 +1,6 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+
+set -e
 
 # ==============================================================================
 # This script builds the zip package for the extension. It compiles translations
@@ -31,6 +33,13 @@ function compile_resources() {
 		--target="$RESOURCE_TARGET"
 
 	echo "Resources compiled."
+}
+
+function compile_schemas(){
+	echo "Compiling schemas..."
+
+	glib-compile-schemas \
+		"$JS_DIR/schemas"
 }
 
 function compile_translations() {
@@ -101,6 +110,17 @@ function build_extension_package() {
 			compile_resources
 		else
 			echo "ERROR: glib-compile-resources isn't installed. Resources won't be compiled. This may cause errors for the extension. Please install glib-compile-resources and rebuild the extension. Exiting..."
+
+			exit 1
+		fi
+	fi
+
+	# Compile schemas
+	if (find $JS_DIR/schemas/ -type f | grep ".") &> /dev/null; then
+		if command -v glib-compile-schemas &> /dev/null; then
+			compile_schemas
+		else
+			echo "ERROR: glib-compile-schemas isn't installed. Schemas won't be compiled. This may cause errors for the extension. Please install glib-compile-schemas and rebuild the extension. Exiting..."
 
 			exit 1
 		fi
