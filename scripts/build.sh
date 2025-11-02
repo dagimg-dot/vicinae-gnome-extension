@@ -115,8 +115,8 @@ function build_extension_package() {
 		fi
 	fi
 
-	# Compile schemas
-	if (find $JS_DIR/schemas/ -type f | grep ".") &> /dev/null; then
+	# Compile schemas (only if requested, not needed after GNOME 45)
+	if [ "$COMPILE_SCHEMAS" = true ] && (find $JS_DIR/schemas/ -type f | grep ".") &> /dev/null; then
 		if command -v glib-compile-schemas &> /dev/null; then
 			compile_schemas
 		else
@@ -225,6 +225,7 @@ function usage() {
 	                        folder with your project in it. Develop on the host but
 	                        run the build script within the VM using this option to
 	                        quickly test your extension
+	  --compile-schemas     Compile schemas (not needed after GNOME 45)
 	  -h, --help            Display this help message
 	EOF
 }
@@ -242,6 +243,7 @@ RESOURCE_XML="$BUILD_DIR/$UUID.gresource.xml"
 RESOURCE_TARGET="$BUILD_DIR/$UUID.gresource"
 USING_TYPESCRIPT=$(find . -maxdepth 1 -type f | grep -q "tsconfig.json" && echo "true" || echo "false")
 TYPESCRIPT_OUT_DIR="dist"
+COMPILE_SCHEMAS=false
 
 if [ "$USING_TYPESCRIPT" = "true" ]; then
 	JS_DIR="$TYPESCRIPT_OUT_DIR"
@@ -249,29 +251,31 @@ else
 	JS_DIR="src"
 fi
 
-if [ $# -eq 0 ]; then
-	build_extension_package
-	exit 0
-elif [ $# -eq 1 ]; then
+# Parse options
+INSTALL=false
+UNSAFE_RELOAD=false
+BUILD=false
+
+while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--build | -b)
-			build_extension_package
-			exit 0
+			BUILD=true
+			shift
 			;;
 		--install | -i)
-			build_extension_package
-			install_extension_package
-			enable_extension
-			exit 0
+			INSTALL=true
+			shift
+			;;
+		--unsafe-reload | -r)
+			UNSAFE_RELOAD=true
+			shift
+			;;
+		--compile-schemas)
+			COMPILE_SCHEMAS=true
+			shift
 			;;
 		--help | -h)
 			usage
-			exit 0
-			;;
-		--unsafe-reload | -r)
-			build_extension_package
-			install_extension_package -r
-			enable_extension
 			exit 0
 			;;
 		*)
@@ -279,7 +283,21 @@ elif [ $# -eq 1 ]; then
 			exit 1
 			;;
 	esac
-else
-	echo "Invalid number of arguments. Use --help for help."
-	exit 1
+done
+
+# Default action is to build if no other action is specified
+if [ "$BUILD" = false ] && [ "$INSTALL" = false ] && [ "$UNSAFE_RELOAD" = false ]; then
+	BUILD=true
+fi
+
+if [ "$BUILD" = true ]; then
+	build_extension_package
+fi
+
+if [ "$INSTALL" = true ]; then
+	install_extension_package
+	enable_extension
+elif [ "$UNSAFE_RELOAD" = true ]; then
+	install_extension_package -r
+	enable_extension
 fi
