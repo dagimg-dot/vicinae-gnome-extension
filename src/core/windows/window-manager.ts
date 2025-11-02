@@ -45,10 +45,6 @@ export class VicinaeWindowManager implements WindowManager {
             return false;
         }
 
-        logger.debug(
-            `isTargetWindow: wmClass: ${wmClass}, appClass: ${this.appClass}`,
-        );
-
         return (
             wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
             this.appClass.toLowerCase().includes(wmClass.toLowerCase())
