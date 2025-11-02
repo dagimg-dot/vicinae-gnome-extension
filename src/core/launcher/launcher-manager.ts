@@ -1,3 +1,4 @@
+import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
@@ -26,6 +27,7 @@ export class LauncherManager {
     private config: LauncherConfig;
     private isEnabled = false;
     private trackedWindows = new Set<number>();
+    private enableTimeoutId: number | null = null;
 
     constructor(
         config: LauncherConfig,
@@ -172,9 +174,15 @@ export class LauncherManager {
 
     private cleanup() {
         try {
+            if (this.enableTimeoutId) {
+                GLib.source_remove(this.enableTimeoutId);
+                this.enableTimeoutId = null;
+            }
+
             this.windowTracker.disable();
             this.focusTracker?.disable();
             this.clickHandler?.disable();
+            this.windowManager.destroy();
             this.trackedWindows.clear();
         } catch (error) {
             logger.error("LauncherManager: Error during cleanup", error);
@@ -189,10 +197,22 @@ export class LauncherManager {
             this.cleanup();
             this.isEnabled = false;
 
+            // Cancel any existing enable timeout
+            if (this.enableTimeoutId) {
+                GLib.source_remove(this.enableTimeoutId);
+                this.enableTimeoutId = null;
+            }
+
             // Wait a bit before re-enabling
-            setTimeout(() => {
-                this.enable();
-            }, 500);
+            this.enableTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                500,
+                () => {
+                    this.enable();
+                    this.enableTimeoutId = null;
+                    return false;
+                },
+            );
 
             logger.info("LauncherManager: Recovery initiated");
         } catch (error) {
@@ -214,7 +234,22 @@ export class LauncherManager {
         if (this.isEnabled) {
             logger.info("LauncherManager: Re-enabling with new configuration");
             this.disable();
-            setTimeout(() => this.enable(), 100);
+
+            // Cancel any existing enable timeout
+            if (this.enableTimeoutId) {
+                GLib.source_remove(this.enableTimeoutId);
+                this.enableTimeoutId = null;
+            }
+
+            this.enableTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                100,
+                () => {
+                    this.enable();
+                    this.enableTimeoutId = null;
+                    return false;
+                },
+            );
         }
     }
 

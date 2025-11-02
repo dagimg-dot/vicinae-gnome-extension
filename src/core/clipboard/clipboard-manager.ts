@@ -534,6 +534,12 @@ export class VicinaeClipboardManager {
 
     triggerKeyboardPaste() {
         logger.debug("Trigger keyboard paste called");
+
+        if (this.pasteHackCallbackId) {
+            GLib.source_remove(this.pasteHackCallbackId);
+            this.pasteHackCallbackId = null;
+        }
+
         this.pasteHackCallbackId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
             1, // Just post to the end of the event loop
@@ -570,6 +576,12 @@ export class VicinaeClipboardManager {
     }
 
     destroy(): void {
+        // Remove any pending timeout
+        if (this.pasteHackCallbackId) {
+            GLib.source_remove(this.pasteHackCallbackId);
+            this.pasteHackCallbackId = null;
+        }
+
         if (this.selection && this._selectionOwnerChangedId) {
             try {
                 this.selection.disconnect(this._selectionOwnerChangedId);

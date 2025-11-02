@@ -33,6 +33,7 @@ export class VicinaeWindowManager implements WindowManager {
     private clipboardManager: VicinaeClipboardManager;
     private PASTE_DELAY = 100;
     private appClass: string;
+    private pasteTimeoutId: number | null = null;
 
     constructor(clipboardManager: VicinaeClipboardManager, appClass: string) {
         this.appClass = appClass;
@@ -349,14 +350,24 @@ export class VicinaeWindowManager implements WindowManager {
             return false;
         }
 
+        if (this.pasteTimeoutId) {
+            GLib.source_remove(this.pasteTimeoutId);
+            this.pasteTimeoutId = null;
+        }
+
         // Wait longer to ensure window is focused and clipboard has propagated
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, this.PASTE_DELAY, () => {
-            logger.debug(
-                `Sending keyboard paste for window ${winid} ${key} ${modifiers} after ${this.PASTE_DELAY}ms delay`,
-            );
-            this.clipboardManager.triggerKeyboardPaste();
-            return false;
-        });
+        this.pasteTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            this.PASTE_DELAY,
+            () => {
+                logger.debug(
+                    `Sending keyboard paste for window ${winid} ${key} ${modifiers} after ${this.PASTE_DELAY}ms delay`,
+                );
+                this.clipboardManager.triggerKeyboardPaste();
+                this.pasteTimeoutId = null;
+                return false;
+            },
+        );
 
         logger.debug(
             `Triggered keyboard paste for window ${winid} ${key} ${modifiers}`,
@@ -387,5 +398,13 @@ export class VicinaeWindowManager implements WindowManager {
             logger.warn(`Unhandled shortcut: ${key} ${modifiers}`);
             return false;
         }
+    }
+
+    destroy(): void {
+        if (this.pasteTimeoutId) {
+            GLib.source_remove(this.pasteTimeoutId);
+            this.pasteTimeoutId = null;
+        }
+        logger.debug("Window manager destroyed");
     }
 }
