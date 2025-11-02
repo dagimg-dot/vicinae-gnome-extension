@@ -39,6 +39,12 @@ export class VicinaeWindowManager implements WindowManager {
         this.clipboardManager = clipboardManager;
     }
 
+    /**
+     * Checks if the window is a target window.
+     *
+     * @param wmClass - The window manager class of the window.
+     * @returns True if the window is a target window, false otherwise.
+     */
     isTargetWindow(wmClass: string): boolean {
         if (!wmClass) {
             logger.debug("isTargetWindow: No wmClass provided");

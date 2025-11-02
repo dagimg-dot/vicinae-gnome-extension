@@ -1,6 +1,7 @@
 import Clutter from "gi://Clutter";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
+import type { VicinaeWindowManager } from "../windows/window-manager.js";
 
 declare const global: {
     stage: Clutter.Stage;
@@ -10,11 +11,14 @@ declare const global: {
 
 export class ClickHandler {
     private buttonPressHandler?: number;
+    private windowManager: VicinaeWindowManager;
 
     constructor(
-        private appClass: string,
+        windowManager: VicinaeWindowManager,
         private onClickOutside: () => void,
-    ) {}
+    ) {
+        this.windowManager = windowManager;
+    }
 
     enable() {
         try {
@@ -59,12 +63,12 @@ export class ClickHandler {
         });
 
         const clickedWindow = window?.meta_window;
-        const isOurWindow = clickedWindow
-            ?.get_wm_class()
-            ?.toLowerCase()
-            .includes(this.appClass.toLowerCase());
 
-        if (!clickedWindow || !isOurWindow) {
+        const isTargetWindow = this.windowManager.isTargetWindow(
+            clickedWindow?.get_wm_class() || "",
+        );
+
+        if (!clickedWindow || !isTargetWindow) {
             this.onClickOutside();
         }
     }

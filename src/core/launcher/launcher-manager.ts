@@ -31,7 +31,10 @@ export class LauncherManager {
         config: LauncherConfig,
         clipboardManager: VicinaeClipboardManager,
     ) {
-        this.windowManager = new VicinaeWindowManager(clipboardManager);
+        this.windowManager = new VicinaeWindowManager(
+            clipboardManager,
+            config.appClass,
+        );
         this.config = config;
         this.windowTracker = new WindowTracker(
             config.appClass,
@@ -87,7 +90,7 @@ export class LauncherManager {
     }
 
     private setupClickHandling() {
-        this.clickHandler = new ClickHandler(this.config.appClass, () =>
+        this.clickHandler = new ClickHandler(this.windowManager, () =>
             this.closeTrackedWindows(),
         );
         this.clickHandler.enable();
