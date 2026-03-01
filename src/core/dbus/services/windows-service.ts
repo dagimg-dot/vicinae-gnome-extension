@@ -6,6 +6,26 @@ import { getFocusedWindow } from "../../../utils/window-utils.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
 
+/** Stores disconnect thunks and runs them all in disconnectAll(). */
+class SignalRegistry {
+    private disconnectFns: Array<() => void> = [];
+
+    add(fn: () => void): void {
+        this.disconnectFns.push(fn);
+    }
+
+    disconnectAll(): void {
+        for (const fn of this.disconnectFns) {
+            try {
+                fn();
+            } catch (error) {
+                logger.debug(`Error during signal cleanup: ${error}`);
+            }
+        }
+        this.disconnectFns = [];
+    }
+}
+
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
     private dbusObject: Gio.DBusExportedObject | null = null;
@@ -18,6 +38,7 @@ export class WindowsService {
     private focusIdleSourceId: number = 0;
 
     private windowSizeSignalIds: Map<number, number> = new Map();
+    private signalRegistry: SignalRegistry = new SignalRegistry();
 
     // Track previous focused window for paste-to-active-app functionality
     private previousFocusedWindow: { id: number; wmClass: string } | null =
@@ -62,6 +83,11 @@ export class WindowsService {
                 }
             },
         );
+        this.signalRegistry.add(() => {
+            if (this.windowDestroyHandlerId) {
+                global.window_manager.disconnect(this.windowDestroyHandlerId);
+            }
+        });
 
         this.windowOpenedSignalId = global.display.connect(
             "window-created",
@@ -83,8 +109,34 @@ export class WindowsService {
                 }
             },
         );
+        this.signalRegistry.add(() => {
+            if (this.windowOpenedSignalId) {
+                global.display.disconnect(this.windowOpenedSignalId);
+            }
+        });
 
         this.connectSizeSignalsToExistingWindows();
+
+        this.signalRegistry.add(() => {
+            for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
+                try {
+                    const windowActors = global.get_window_actors();
+
+                    const windowActor = windowActors.find(
+                        (actor) => actor.meta_window?.get_id() === windowId,
+                    );
+
+                    if (windowActor?.meta_window && sizeSignalId) {
+                        windowActor.meta_window.disconnect(sizeSignalId);
+                    }
+                } catch (error) {
+                    logger.debug(
+                        `Error disconnecting size signal for window ${windowId}: ${error}`,
+                    );
+                }
+            }
+            this.windowSizeSignalIds.clear();
+        });
 
         this.windowFocusSignalId = global.display.connect(
             "notify::focus-window",
@@ -127,6 +179,19 @@ export class WindowsService {
             },
         );
 
+        this.signalRegistry.add(() => {
+            if (this.windowFocusSignalId) {
+                global.display.disconnect(this.windowFocusSignalId);
+            }
+        });
+
+        this.signalRegistry.add(() => {
+            if (this.focusIdleSourceId) {
+                GLib.source_remove(this.focusIdleSourceId);
+                this.focusIdleSourceId = 0;
+            }
+        });
+
         this.workspaceChangedSignalId = global.workspace_manager?.connect(
             "notify::active-workspace",
             () => {
@@ -145,6 +210,14 @@ export class WindowsService {
                 }
             },
         );
+
+        this.signalRegistry.add(() => {
+            if (this.workspaceChangedSignalId && global.workspace_manager) {
+                global.workspace_manager.disconnect(
+                    this.workspaceChangedSignalId,
+                );
+            }
+        });
 
         logger.debug(
             "WindowsService: GNOME window event listeners set up successfully",
@@ -188,6 +261,7 @@ export class WindowsService {
     private findWindowById(windowId: number): Meta.Window | null {
         try {
             const actors = global.get_window_actors();
+
             for (const actor of actors) {
                 if (actor.meta_window?.get_id() === windowId) {
                     return actor.meta_window;
@@ -260,119 +334,83 @@ export class WindowsService {
         };
     }
 
-    // Cleanup method to disconnect signals
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
-
-        if (this.focusIdleSourceId) {
-            GLib.source_remove(this.focusIdleSourceId);
-            this.focusIdleSourceId = 0;
-        }
-
-        if (this.windowOpenedSignalId) {
-            global.display.disconnect(this.windowOpenedSignalId);
-        }
-
-        if (this.windowFocusSignalId) {
-            global.display.disconnect(this.windowFocusSignalId);
-        }
-
-        if (this.workspaceChangedSignalId && global.workspace_manager) {
-            global.workspace_manager.disconnect(this.workspaceChangedSignalId);
-        }
-
-        if (this.windowDestroyHandlerId) {
-            global.window_manager.disconnect(this.windowDestroyHandlerId);
-        }
-
-        for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
-            try {
-                const windowActors = global.get_window_actors();
-                const windowActor = windowActors.find(
-                    (actor) => actor.meta_window?.get_id() === windowId,
-                );
-
-                if (windowActor?.meta_window && sizeSignalId) {
-                    windowActor.meta_window.disconnect(sizeSignalId);
-                }
-            } catch (error) {
-                logger.debug(
-                    `Error disconnecting size signal for window ${windowId}: ${error}`,
-                );
-            }
-        }
-
-        this.windowSizeSignalIds.clear();
-
+        this.signalRegistry.disconnectAll();
         logger.debug("WindowsService: Window event listeners cleaned up");
     }
 
-    List(): string {
+    private wrapDBusMethod<T>(
+        operation: string,
+        fn: () => T,
+        serialize: (r: T) => string,
+    ): string;
+
+    private wrapDBusMethod<T>(operation: string, fn: () => T): T;
+
+    private wrapDBusMethod<T>(
+        operation: string,
+        fn: () => T,
+        serialize?: (r: T) => string,
+    ): string | T {
         try {
-            // Force a brief delay to ensure focus state is consistent
-            // This helps prevent race conditions between focus changes and list requests
-            GLib.usleep(1000); // 1ms delay
-
-            const windows = this.windowManager.list();
-
-            // Filter out Vicinae launcher window to prevent it from appearing in the window list
-            const filteredWindows = windows.filter(
-                (window) => !this.windowManager.isTargetWindow(window.wm_class),
-            );
-
-            return JSON.stringify(filteredWindows);
+            const result = fn();
+            return serialize ? serialize(result) : result;
         } catch (error) {
-            logger.error("D-Bus: Error listing windows", error);
+            logger.error(`D-Bus: Error ${operation}`, error);
             throw error;
         }
+    }
+
+    List(): string {
+        return this.wrapDBusMethod(
+            "listing windows",
+            () => {
+                GLib.usleep(1000);
+                const windows = this.windowManager.list();
+                return windows.filter(
+                    (window) =>
+                        !this.windowManager.isTargetWindow(window.wm_class),
+                );
+            },
+            JSON.stringify,
+        );
     }
 
     Details(winid: number): string {
-        try {
-            const details = this.windowManager.details(winid);
-            return JSON.stringify(details);
-        } catch (error) {
-            logger.error("D-Bus: Error getting window details", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "getting window details",
+            () => this.windowManager.details(winid),
+            JSON.stringify,
+        );
     }
 
     GetTitle(winid: number): string {
-        try {
-            return this.windowManager.getTitle(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error getting window title", error);
-            throw error;
-        }
+        return this.wrapDBusMethod("getting window title", () =>
+            this.windowManager.getTitle(winid),
+        );
     }
 
     GetFrameRect(winid: number): string {
-        try {
-            const frameRect = this.windowManager.getFrameRect(winid);
-            return JSON.stringify(frameRect);
-        } catch (error) {
-            logger.error("D-Bus: Error getting window frame rect", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "getting window frame rect",
+            () => this.windowManager.getFrameRect(winid),
+            JSON.stringify,
+        );
     }
 
     GetFrameBounds(winid: number): string {
-        try {
-            const frameBounds = this.windowManager.getFrameBounds(winid);
-            return JSON.stringify(frameBounds);
-        } catch (error) {
-            logger.error("D-Bus: Error getting window frame bounds", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "getting window frame bounds",
+            () => this.windowManager.getFrameBounds(winid),
+            JSON.stringify,
+        );
     }
 
     MoveToWorkspace(winid: number, workspaceNum: number): void {
-        try {
-            this.windowManager.moveToWorkspace(winid, workspaceNum);
-        } catch (error) {
-            logger.error("D-Bus: Error moving window to workspace", error);
-            throw error;
-        }
+        this.wrapDBusMethod("moving window to workspace", () =>
+            this.windowManager.moveToWorkspace(winid, workspaceNum),
+        );
     }
 
     MoveResize(
@@ -382,117 +420,86 @@ export class WindowsService {
         width: number,
         height: number,
     ): void {
-        try {
-            this.windowManager.moveResize(winid, x, y, width, height);
-        } catch (error) {
-            logger.error("D-Bus: Error move resizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("move resizing window", () =>
+            this.windowManager.moveResize(winid, x, y, width, height),
+        );
     }
 
     Resize(winid: number, width: number, height: number): void {
-        try {
-            this.windowManager.resize(winid, width, height);
-        } catch (error) {
-            logger.error("D-Bus: Error resizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("resizing window", () =>
+            this.windowManager.resize(winid, width, height),
+        );
     }
 
     Move(winid: number, x: number, y: number): void {
-        try {
-            this.windowManager.move(winid, x, y);
-        } catch (error) {
-            logger.error("D-Bus: Error moving window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("moving window", () =>
+            this.windowManager.move(winid, x, y),
+        );
     }
 
     Maximize(winid: number): void {
-        try {
-            this.windowManager.maximize(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error maximizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("maximizing window", () =>
+            this.windowManager.maximize(winid),
+        );
     }
 
     Minimize(winid: number): void {
-        try {
-            this.windowManager.minimize(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error minimizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("minimizing window", () =>
+            this.windowManager.minimize(winid),
+        );
     }
 
     Unmaximize(winid: number): void {
-        try {
-            this.windowManager.unmaximize(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error unmaximizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("unmaximizing window", () =>
+            this.windowManager.unmaximize(winid),
+        );
     }
 
     Unminimize(winid: number): void {
-        try {
-            this.windowManager.unminimize(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error unminimizing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("unminimizing window", () =>
+            this.windowManager.unminimize(winid),
+        );
     }
 
     Activate(winid: number): void {
-        try {
-            this.windowManager.activate(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error activating window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("activating window", () =>
+            this.windowManager.activate(winid),
+        );
     }
 
     Close(winid: number): void {
-        try {
-            this.windowManager.close(winid);
-        } catch (error) {
-            logger.error("D-Bus: Error closing window", error);
-            throw error;
-        }
+        this.wrapDBusMethod("closing window", () =>
+            this.windowManager.close(winid),
+        );
     }
 
     ListWorkspaces(): string {
-        try {
-            const workspaces = this.windowManager.listWorkspaces();
-            return JSON.stringify(workspaces);
-        } catch (error) {
-            logger.error("D-Bus: Error listing workspaces", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "listing workspaces",
+            () => this.windowManager.listWorkspaces(),
+            JSON.stringify,
+        );
     }
 
     GetActiveWorkspace(): string {
-        try {
-            const workspace = this.windowManager.getActiveWorkspace();
-            return JSON.stringify(workspace);
-        } catch (error) {
-            logger.error("D-Bus: Error getting active workspace", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "getting active workspace",
+            () => this.windowManager.getActiveWorkspace(),
+            JSON.stringify,
+        );
     }
 
     GetWorkspaceWindows(workspaceIndex: number): string {
-        try {
-            const windows = this.windowManager.list();
-            const workspaceWindows = windows.filter(
-                (win) => win.workspace === workspaceIndex,
-            );
-            return JSON.stringify(workspaceWindows);
-        } catch (error) {
-            logger.error("D-Bus: Error getting workspace windows", error);
-            throw error;
-        }
+        return this.wrapDBusMethod(
+            "getting workspace windows",
+            () => {
+                const windows = this.windowManager.list();
+                return windows.filter(
+                    (win) => win.workspace === workspaceIndex,
+                );
+            },
+            JSON.stringify,
+        );
     }
 
     SendShortcut(winid: number, key: string, modifiers: string): boolean {
@@ -556,53 +563,43 @@ export class WindowsService {
         }
     }
 
-    // Signal emission methods - called by window manager when events occur
+    private emitSignal(
+        signalName: string,
+        signature: string,
+        args: unknown[],
+    ): void {
+        try {
+            logger.debug(`Emitting ${signalName} signal...`);
+
+            this.dbusObject?.emit_signal(
+                signalName,
+                GLib.Variant.new(signature, args),
+            );
+        } catch (signalError) {
+            logger.error(`Error emitting ${signalName} signal`, signalError);
+        }
+    }
+
     emitOpenWindow(
         windowAddress: string,
         workspaceName: string,
         wmClass: string,
         title: string,
     ): void {
-        try {
-            logger.debug(
-                `Emitting openwindow signal for ${title} (${wmClass})`,
-            );
-            this.dbusObject?.emit_signal(
-                "openwindow",
-                GLib.Variant.new("(ssss)", [
-                    String(windowAddress),
-                    String(workspaceName),
-                    String(wmClass),
-                    String(title),
-                ]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting openwindow signal", signalError);
-        }
+        this.emitSignal("openwindow", "(ssss)", [
+            String(windowAddress),
+            String(workspaceName),
+            String(wmClass),
+            String(title),
+        ]);
     }
 
     emitCloseWindow(windowAddress: string): void {
-        try {
-            logger.debug(`Emitting closewindow signal for ${windowAddress}`);
-            this.dbusObject?.emit_signal(
-                "closewindow",
-                GLib.Variant.new("(s)", [String(windowAddress)]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting closewindow signal", signalError);
-        }
+        this.emitSignal("closewindow", "(s)", [String(windowAddress)]);
     }
 
     emitFocusWindow(windowAddress: string): void {
-        try {
-            logger.debug(`Emitting focuswindow signal for ${windowAddress}`);
-            this.dbusObject?.emit_signal(
-                "focuswindow",
-                GLib.Variant.new("(s)", [String(windowAddress)]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting focuswindow signal", signalError);
-        }
+        this.emitSignal("focuswindow", "(s)", [String(windowAddress)]);
     }
 
     emitMoveWindow(
@@ -612,64 +609,27 @@ export class WindowsService {
         width: number,
         height: number,
     ): void {
-        try {
-            logger.debug(`Emitting movewindow signal for ${windowAddress}`);
-            this.dbusObject?.emit_signal(
-                "movewindow",
-                GLib.Variant.new("(siiuu)", [
-                    String(windowAddress),
-                    x,
-                    y,
-                    width,
-                    height,
-                ]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting movewindow signal", signalError);
-        }
+        this.emitSignal("movewindow", "(siiuu)", [
+            String(windowAddress),
+            x,
+            y,
+            width,
+            height,
+        ]);
     }
 
     emitStateWindow(windowAddress: string, state: string): void {
-        try {
-            logger.debug(
-                `Emitting statewindow signal for ${windowAddress}: ${state}`,
-            );
-            this.dbusObject?.emit_signal(
-                "statewindow",
-                GLib.Variant.new("(ss)", [
-                    String(windowAddress),
-                    String(state),
-                ]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting statewindow signal", signalError);
-        }
+        this.emitSignal("statewindow", "(ss)", [
+            String(windowAddress),
+            String(state),
+        ]);
     }
 
     emitWorkspaceChanged(workspaceId: string): void {
-        try {
-            logger.debug(`Emitting workspacechanged signal for ${workspaceId}`);
-            this.dbusObject?.emit_signal(
-                "workspacechanged",
-                GLib.Variant.new("(s)", [String(workspaceId)]),
-            );
-        } catch (signalError) {
-            logger.error("Error emitting workspacechanged signal", signalError);
-        }
+        this.emitSignal("workspacechanged", "(s)", [String(workspaceId)]);
     }
 
     emitMonitorLayoutChanged(): void {
-        try {
-            logger.debug("Emitting monitorlayoutchanged signal");
-            this.dbusObject?.emit_signal(
-                "monitorlayoutchanged",
-                GLib.Variant.new("()", []),
-            );
-        } catch (signalError) {
-            logger.error(
-                "Error emitting monitorlayoutchanged signal",
-                signalError,
-            );
-        }
+        this.emitSignal("monitorlayoutchanged", "()", []);
     }
 }
