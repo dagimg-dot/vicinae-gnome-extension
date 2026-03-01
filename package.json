@@ -18,6 +18,7 @@
     "dev:nested": "bun build:install && env MUTTER_DEBUG_DUMMY_MODE_SPECS=1500x900 ./scripts/dev-run.sh",
     "build": "./scripts/build.sh --build",
     "build:install": "bun check && ./scripts/build.sh --build --install",
+    "build:install:gdm": "bun check && ./scripts/build.sh --build --install --restart-gdm",
     "setup": "./scripts/setup.sh",
     "log": "./scripts/log.sh -f",
     "log:all": "./scripts/log.sh",
