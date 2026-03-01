@@ -4,6 +4,13 @@ import { logger } from "../../utils/logger.js";
 
 declare const global: {
     display: Meta.Display;
+    window_manager: {
+        connect: (
+            signal: string,
+            callback: (...args: unknown[]) => void,
+        ) => number;
+        disconnect: (id: number) => void;
+    };
     get_window_actors: () => Meta.WindowActor[];
     get_current_time: () => number;
 };
@@ -11,8 +18,7 @@ declare const global: {
 export class WindowTracker {
     private trackedWindows = new Set<number>();
     private windowCreatedHandler?: number;
-    private windowDestroySignalIds = new Map<number, number | undefined>();
-    private windowValidators = new Map<number, () => boolean>();
+    private windowDestroyHandler?: number;
     private isDestroying = false;
 
     constructor(
@@ -33,7 +39,27 @@ export class WindowTracker {
                 },
             );
 
-            // Handle existing windows
+            this.windowDestroyHandler = global.window_manager.connect(
+                "destroy",
+                (_wm: unknown, actor: unknown) => {
+                    if (this.isDestroying) return;
+                    try {
+                        const metaWindow = (actor as Meta.WindowActor)
+                            ?.meta_window;
+                        const windowId = metaWindow?.get_id();
+                        if (windowId && this.trackedWindows.has(windowId)) {
+                            this.trackedWindows.delete(windowId);
+                            this.onWindowUntracked(windowId);
+                            logger.debug(
+                                `WindowTracker: Untracking destroyed window ${windowId}`,
+                            );
+                        }
+                    } catch {
+                        // Window already gone, safe to ignore
+                    }
+                },
+            );
+
             this.scanExistingWindows();
             logger.info("WindowTracker: Window tracking enabled");
         } catch (error) {
@@ -53,25 +79,11 @@ export class WindowTracker {
             this.windowCreatedHandler = undefined;
         }
 
-        // Safely disconnect all window destroy handlers
-        for (const [windowId, signalId] of this.windowDestroySignalIds) {
-            if (signalId) {
-                try {
-                    const window = this.getWindowById(windowId);
-                    if (window && this.isWindowValid(window)) {
-                        window.disconnect(signalId);
-                    }
-                } catch (_error) {
-                    // Window might be already destroyed, which is expected
-                    logger.debug(
-                        `WindowTracker: Signal already disconnected for window ${windowId}`,
-                    );
-                }
-            }
+        if (this.windowDestroyHandler) {
+            global.window_manager.disconnect(this.windowDestroyHandler);
+            this.windowDestroyHandler = undefined;
         }
 
-        this.windowDestroySignalIds.clear();
-        this.windowValidators.clear();
         this.trackedWindows.clear();
         this.isDestroying = false;
         logger.info("WindowTracker: Window tracking disabled");
@@ -102,12 +114,7 @@ export class WindowTracker {
     }
 
     private handleNewWindow(window: Meta.Window) {
-        if (this.isDestroying || !this.isValidWindow(window)) {
-            logger.debug(
-                "WindowTracker: Invalid window object or destroying, skipping",
-            );
-            return;
-        }
+        if (this.isDestroying) return;
 
         try {
             const wmClass = window.get_wm_class();
@@ -115,52 +122,14 @@ export class WindowTracker {
             const windowId = window.get_id();
 
             if (!wmClass || !title || windowId <= 0) {
-                logger.debug("WindowTracker: Invalid window properties", {
-                    wmClass,
-                    title,
-                    windowId,
-                });
                 return;
             }
 
             if (wmClass.toLowerCase().includes(this.appClass.toLowerCase())) {
                 if (!this.trackedWindows.has(windowId)) {
                     this.trackedWindows.add(windowId);
-
-                    // Create a validator function for this window
-                    const validator = () => this.isWindowValid(window);
-                    this.windowValidators.set(windowId, validator);
-
                     this.onWindowTracked(windowId);
-
-                    // Center the window after tracking
                     this.centerWindow(window);
-
-                    // Set up window destroy handler with safer approach
-                    // Check if the window has the destroy signal (X11 vs Wayland)
-                    let signalId: number | undefined;
-                    try {
-                        // Try to connect to destroy signal first
-                        signalId = window.connect("destroy", () => {
-                            this.handleWindowDestroyed(window);
-                        });
-                    } catch (_error) {
-                        // If destroy signal doesn't exist, try unmanaged signal
-                        try {
-                            signalId = window.connect("unmanaged", () => {
-                                this.handleWindowDestroyed(window);
-                            });
-                        } catch (_unmanagedError) {
-                            // If neither signal exists, log and continue without signal tracking
-                            logger.debug(
-                                `WindowTracker: No suitable destroy signal for window ${windowId}, skipping signal connection`,
-                            );
-                        }
-                    }
-
-                    if (signalId) {
-                        this.windowDestroySignalIds.set(windowId, signalId);
-                    }
 
                     logger.debug(
                         `WindowTracker: Tracking new window ${windowId} (${wmClass})`,
@@ -171,87 +140,10 @@ export class WindowTracker {
             logger.error("WindowTracker: Error handling new window", {
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
-                windowId: window?.get_id?.() || "unknown",
             });
         }
     }
 
-    private isValidWindow(window: Meta.Window): boolean {
-        if (!window) return false;
-
-        // Check if required methods exist
-        if (typeof window.get_wm_class !== "function") return false;
-        if (typeof window.get_id !== "function") return false;
-
-        // Check if window is in a valid state
-        try {
-            const windowId = window.get_id();
-            return windowId > 0 && windowId !== undefined;
-        } catch {
-            return false;
-        }
-    }
-
-    private isWindowValid(window: Meta.Window): boolean {
-        if (!window) return false;
-
-        try {
-            // Check if window still exists in the window list
-            const windowActors = global.get_window_actors();
-            const stillExists = windowActors.some(
-                (actor) =>
-                    actor.meta_window &&
-                    actor.meta_window.get_id() === window.get_id(),
-            );
-
-            if (!stillExists) return false;
-
-            // Try to access window properties to ensure it's still valid
-            window.get_id();
-            window.get_wm_class();
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    private handleWindowDestroyed(window: Meta.Window) {
-        if (this.isDestroying || !this.isValidWindow(window)) return;
-
-        const windowId = window.get_id();
-        if (this.trackedWindows.has(windowId)) {
-            this.trackedWindows.delete(windowId);
-            this.windowValidators.delete(windowId);
-            this.onWindowUntracked(windowId);
-
-            // Clean up the destroy signal handler - don't try to disconnect from destroyed window
-            this.windowDestroySignalIds.delete(windowId);
-
-            logger.debug(
-                `WindowTracker: Untracking destroyed window ${windowId}`,
-            );
-        }
-    }
-
-    private getWindowById(windowId: number): Meta.Window | null {
-        try {
-            const actors = global.get_window_actors();
-            for (const actor of actors) {
-                const window = actor.meta_window;
-                if (window && window.get_id() === windowId) {
-                    return window;
-                }
-            }
-        } catch (error) {
-            logger.error(
-                `WindowTracker: Error finding window ${windowId}`,
-                error,
-            );
-        }
-        return null;
-    }
-
-    // Public methods for external access
     getTrackedWindows(): number[] {
         return Array.from(this.trackedWindows);
     }
@@ -260,21 +152,11 @@ export class WindowTracker {
         return this.trackedWindows.size;
     }
 
-    /**
-     * Centers a window on the current monitor
-     */
     private centerWindow(window: Meta.Window): void {
-        if (this.isDestroying || !this.isWindowValid(window)) {
-            logger.debug(
-                "WindowTracker: Skipping center window - window invalid or destroying",
-            );
-            return;
-        }
+        if (this.isDestroying) return;
 
         try {
             const { x, y } = this.getCenterPosition(window);
-
-            // Move the window to center position
             window.move_frame(true, x, y);
 
             logger.debug(
@@ -287,9 +169,6 @@ export class WindowTracker {
         }
     }
 
-    /**
-     * Gets the center position of a window
-     */
     private getCenterPosition(window: Meta.Window): { x: number; y: number } {
         const monitor = window.get_monitor();
         const display = global.display;

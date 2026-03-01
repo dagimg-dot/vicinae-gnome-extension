@@ -14,9 +14,9 @@ export class WindowsService {
     private windowOpenedSignalId: number = 0;
     private windowFocusSignalId: number = 0;
     private workspaceChangedSignalId: number = 0;
+    private windowDestroyHandlerId: number = 0;
+    private focusIdleSourceId: number = 0;
 
-    // Track individual window signal IDs
-    private windowDestroySignalIds: Map<number, number> = new Map();
     private windowSizeSignalIds: Map<number, number> = new Map();
 
     // Track previous focused window for paste-to-active-app functionality
@@ -42,10 +42,27 @@ export class WindowsService {
     private setupWindowEventListeners(): void {
         logger.debug("WindowsService: Setting up GNOME window event listeners");
 
-        // Connect to GNOME's global window events
-        const _display = global.display;
+        this.windowDestroyHandlerId = global.window_manager.connect(
+            "destroy",
+            (_wm: unknown, actor: Meta.WindowActor) => {
+                try {
+                    const metaWindow = actor.meta_window;
+                    if (!metaWindow) return;
 
-        // Window opened event
+                    const windowId = metaWindow.get_id();
+
+                    logger.debug(
+                        `Window ${windowId} destroy signal triggered - emitting closewindow`,
+                    );
+
+                    this.emitCloseWindow(windowId.toString());
+                    this.windowSizeSignalIds.delete(windowId);
+                } catch (error) {
+                    logger.debug(`Error handling window destroy: ${error}`);
+                }
+            },
+        );
+
         this.windowOpenedSignalId = global.display.connect(
             "window-created",
             (_display, window) => {
@@ -58,8 +75,6 @@ export class WindowsService {
                         windowInfo.title,
                     );
 
-                    // Connect to this window's signals
-                    this.connectToWindowDestroy(window);
                     this.connectToWindowSizeChanges(window);
                 } catch (error) {
                     logger.debug(
@@ -69,46 +84,49 @@ export class WindowsService {
             },
         );
 
-        // Connect to destroy signals for all existing windows
-        this.connectToExistingWindows();
+        this.connectSizeSignalsToExistingWindows();
 
-        // Window focus changed event
         this.windowFocusSignalId = global.display.connect(
             "notify::focus-window",
             () => {
                 try {
-                    // Add a small delay to ensure GNOME Shell has updated its internal state
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                        const focusWindow = global.display.focus_window;
-                        if (focusWindow) {
-                            // Track previous focused window
-                            const currentWmClass =
-                                focusWindow.get_wm_class() || "";
-                            if (
-                                !this.windowManager.isTargetWindow(
-                                    currentWmClass,
-                                )
-                            ) {
-                                // Only update previous window if current is not Vicinae
-                                this.previousFocusedWindow = {
-                                    id: focusWindow.get_id(),
-                                    wmClass: currentWmClass,
-                                };
-                            }
+                    if (this.focusIdleSourceId) {
+                        GLib.source_remove(this.focusIdleSourceId);
+                        this.focusIdleSourceId = 0;
+                    }
 
-                            this.emitFocusWindow(
-                                focusWindow.get_id().toString(),
-                            );
-                        }
-                        return GLib.SOURCE_REMOVE;
-                    });
+                    this.focusIdleSourceId = GLib.idle_add(
+                        GLib.PRIORITY_DEFAULT_IDLE,
+                        () => {
+                            this.focusIdleSourceId = 0;
+                            const focusWindow = global.display.focus_window;
+                            if (focusWindow) {
+                                const currentWmClass =
+                                    focusWindow.get_wm_class() || "";
+                                if (
+                                    !this.windowManager.isTargetWindow(
+                                        currentWmClass,
+                                    )
+                                ) {
+                                    this.previousFocusedWindow = {
+                                        id: focusWindow.get_id(),
+                                        wmClass: currentWmClass,
+                                    };
+                                }
+
+                                this.emitFocusWindow(
+                                    focusWindow.get_id().toString(),
+                                );
+                            }
+                            return GLib.SOURCE_REMOVE;
+                        },
+                    );
                 } catch (error) {
                     logger.debug(`Error handling window focus event: ${error}`);
                 }
             },
         );
 
-        // Workspace changed event
         this.workspaceChangedSignalId = global.workspace_manager?.connect(
             "notify::active-workspace",
             () => {
@@ -133,90 +151,15 @@ export class WindowsService {
         );
     }
 
-    private connectToWindowDestroy(window: Meta.Window): void {
-        const windowId = window.get_id();
-
-        try {
-            let signalId: number | undefined;
-
-            let connectedSignal = "";
-
-            // Try to connect to destroy signal first
-            try {
-                logger.debug(
-                    `Attempting to connect 'destroy' signal for window ${windowId}`,
-                );
-                signalId = window.connect("destroy", () => {
-                    try {
-                        logger.debug(
-                            `Window ${windowId} destroy signal triggered - emitting closewindow`,
-                        );
-                        this.emitCloseWindow(windowId.toString());
-                        // Clean up the signal ID
-                        this.windowDestroySignalIds.delete(windowId);
-                    } catch (error) {
-                        logger.debug(
-                            `Error emitting closewindow for ${windowId}: ${error}`,
-                        );
-                    }
-                });
-                connectedSignal = "destroy";
-                logger.debug(
-                    `Successfully connected to 'destroy' signal for window ${windowId}`,
-                );
-            } catch (_destroyError) {
-                logger.debug(
-                    `'destroy' signal not available for window ${windowId}, trying 'unmanaged'`,
-                );
-                // If destroy signal doesn't exist, try unmanaged signal
-                try {
-                    signalId = window.connect("unmanaged", () => {
-                        try {
-                            logger.debug(
-                                `Window ${windowId} unmanaged signal triggered - emitting closewindow`,
-                            );
-                            this.emitCloseWindow(windowId.toString());
-                            // Clean up the signal ID
-                            this.windowDestroySignalIds.delete(windowId);
-                        } catch (error) {
-                            logger.debug(
-                                `Error emitting closewindow for ${windowId}: ${error}`,
-                            );
-                        }
-                    });
-                    connectedSignal = "unmanaged";
-                    logger.debug(
-                        `Successfully connected to 'unmanaged' signal for window ${windowId}`,
-                    );
-                } catch (_unmanagedError) {
-                    logger.debug(
-                        `No suitable destroy signal for window ${windowId}, skipping signal connection`,
-                    );
-                    return;
-                }
-            }
-
-            // Store the signal ID for cleanup
-            if (signalId !== undefined) {
-                this.windowDestroySignalIds.set(windowId, signalId);
-                logger.debug(
-                    `Successfully connected ${connectedSignal} signal for window ${windowId} (signal ID: ${signalId})`,
-                );
-            }
-        } catch (error) {
-            logger.debug(
-                `Failed to connect any destroy signal for window ${windowId}: ${error}`,
-            );
-        }
-    }
-
     private connectToWindowSizeChanges(window: Meta.Window): void {
         const windowId = window.get_id();
 
         try {
             const signalId = window.connect("size-changed", () => {
                 try {
-                    const windowInfo = this.getWindowInfo(window);
+                    const currentWindow = this.findWindowById(windowId);
+                    if (!currentWindow) return;
+                    const windowInfo = this.getWindowInfo(currentWindow);
                     logger.debug(
                         `Window ${windowId} size changed - emitting movewindow`,
                     );
@@ -235,9 +178,6 @@ export class WindowsService {
             });
 
             this.windowSizeSignalIds.set(windowId, signalId);
-            logger.debug(
-                `Connected size-changed signal for window ${windowId}`,
-            );
         } catch (error) {
             logger.debug(
                 `Failed to connect size-changed signal for window ${windowId}: ${error}`,
@@ -245,16 +185,26 @@ export class WindowsService {
         }
     }
 
-    private connectToExistingWindows(): void {
+    private findWindowById(windowId: number): Meta.Window | null {
+        try {
+            const actors = global.get_window_actors();
+            for (const actor of actors) {
+                if (actor.meta_window?.get_id() === windowId) {
+                    return actor.meta_window;
+                }
+            }
+        } catch {
+            // ignore
+        }
+        return null;
+    }
+
+    private connectSizeSignalsToExistingWindows(): void {
         try {
             const windowActors = global.get_window_actors();
-            logger.debug(
-                `WindowsService: Connecting to ${windowActors.length} existing windows`,
-            );
 
             for (const actor of windowActors) {
                 if (actor.meta_window) {
-                    this.connectToWindowDestroy(actor.meta_window);
                     this.connectToWindowSizeChanges(actor.meta_window);
                 }
             }
@@ -314,54 +264,44 @@ export class WindowsService {
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
 
-        // Disconnect display-level signal handlers
+        if (this.focusIdleSourceId) {
+            GLib.source_remove(this.focusIdleSourceId);
+            this.focusIdleSourceId = 0;
+        }
+
         if (this.windowOpenedSignalId) {
             global.display.disconnect(this.windowOpenedSignalId);
         }
+
         if (this.windowFocusSignalId) {
             global.display.disconnect(this.windowFocusSignalId);
         }
+
         if (this.workspaceChangedSignalId && global.workspace_manager) {
             global.workspace_manager.disconnect(this.workspaceChangedSignalId);
         }
 
-        // Disconnect all individual window signals
-        const allWindowIds = new Set([
-            ...this.windowDestroySignalIds.keys(),
-            ...this.windowSizeSignalIds.keys(),
-        ]);
+        if (this.windowDestroyHandlerId) {
+            global.window_manager.disconnect(this.windowDestroyHandlerId);
+        }
 
-        for (const windowId of allWindowIds) {
+        for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
             try {
-                // Find the window and disconnect all its signals
                 const windowActors = global.get_window_actors();
                 const windowActor = windowActors.find(
                     (actor) => actor.meta_window?.get_id() === windowId,
                 );
 
-                if (windowActor?.meta_window) {
-                    // Disconnect destroy signal
-                    const destroySignalId =
-                        this.windowDestroySignalIds.get(windowId);
-                    if (destroySignalId) {
-                        windowActor.meta_window.disconnect(destroySignalId);
-                    }
-
-                    // Disconnect size signal
-                    const sizeSignalId = this.windowSizeSignalIds.get(windowId);
-                    if (sizeSignalId) {
-                        windowActor.meta_window.disconnect(sizeSignalId);
-                    }
+                if (windowActor?.meta_window && sizeSignalId) {
+                    windowActor.meta_window.disconnect(sizeSignalId);
                 }
             } catch (error) {
                 logger.debug(
-                    `Error disconnecting signals for window ${windowId}: ${error}`,
+                    `Error disconnecting size signal for window ${windowId}: ${error}`,
                 );
             }
         }
 
-        // Clear the maps
-        this.windowDestroySignalIds.clear();
         this.windowSizeSignalIds.clear();
 
         logger.debug("WindowsService: Window event listeners cleaned up");

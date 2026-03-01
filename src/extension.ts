@@ -29,6 +29,7 @@ export default class Vicinae extends Extension {
     private settings!: Gio.Settings | null;
     private settingsConnection!: number;
     private launcherSettingsConnection!: number;
+    private blockedAppsConnection!: number;
 
     async enable() {
         logger.info("Vicinae extension enabled");
@@ -71,14 +72,17 @@ export default class Vicinae extends Extension {
             },
         );
 
-        this.settings.connect("changed::blocked-applications", () => {
-            if (this.clipboardManager && this.settings) {
-                this.clipboardManager.updateSettings(this.settings);
-                logger.debug(
-                    "Updated clipboard manager with new blocked applications list",
-                );
-            }
-        });
+        this.blockedAppsConnection = this.settings.connect(
+            "changed::blocked-applications",
+            () => {
+                if (this.clipboardManager && this.settings) {
+                    this.clipboardManager.updateSettings(this.settings);
+                    logger.debug(
+                        "Updated clipboard manager with new blocked applications list",
+                    );
+                }
+            },
+        );
 
         logger.info("Vicinae extension initialized successfully");
     }
@@ -169,6 +173,11 @@ export default class Vicinae extends Extension {
         if (this.launcherSettingsConnection) {
             this.settings?.disconnect(this.launcherSettingsConnection);
             this.launcherSettingsConnection = 0;
+        }
+
+        if (this.blockedAppsConnection) {
+            this.settings?.disconnect(this.blockedAppsConnection);
+            this.blockedAppsConnection = 0;
         }
 
         if (this.launcherManager) {
