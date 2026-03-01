@@ -226,6 +226,7 @@ export class ClipboardService {
         try {
             return [
                 "text/plain",
+                "text/uri-list",
                 "text/html",
                 "image/png",
                 "image/jpeg",

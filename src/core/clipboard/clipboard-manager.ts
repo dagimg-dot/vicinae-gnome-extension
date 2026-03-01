@@ -7,7 +7,10 @@ import St from "gi://St";
 import {
     calculateClipboardMetadata,
     getImageMimeType,
+    isFileUri,
     isValidImageBuffer,
+    parseFileUris,
+    toUriListFormat,
 } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
 import type { BufferLike, ClipboardEvent, ImageContent } from "./types.js";
@@ -153,11 +156,22 @@ export class VicinaeClipboardManager {
         if (!this.clipboard) return;
 
         try {
-            this.clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
-                if (text) {
-                    this.processClipboardContent(text, "system");
-                }
-            });
+            const mimeTypes = this.clipboard.get_mimetypes(
+                St.ClipboardType.CLIPBOARD,
+            );
+
+            if (mimeTypes.includes("text/uri-list")) {
+                this.captureUriListData();
+            } else {
+                this.clipboard.get_text(
+                    St.ClipboardType.CLIPBOARD,
+                    (_, text) => {
+                        if (text) {
+                            this.processClipboardContent(text, "system");
+                        }
+                    },
+                );
+            }
 
             this.clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
                 if (text) {
@@ -165,9 +179,6 @@ export class VicinaeClipboardManager {
                 }
             });
 
-            const mimeTypes = this.clipboard.get_mimetypes(
-                St.ClipboardType.CLIPBOARD,
-            );
             if (mimeTypes.length > 0) {
                 if (mimeTypes.some((type) => type.startsWith("image/"))) {
                     this.captureImageData();
@@ -175,6 +186,74 @@ export class VicinaeClipboardManager {
             }
         } catch (error) {
             logger.error("Error querying clipboard", error);
+        }
+    }
+
+    private captureUriListData() {
+        if (!this.clipboard) return;
+
+        try {
+            this.clipboard.get_content(
+                St.ClipboardType.CLIPBOARD,
+                "text/uri-list",
+                (_: unknown, content: unknown) => {
+                    if (!content) return;
+
+                    let data: Uint8Array | number[] | null = null;
+                    const ctor = content?.constructor as
+                        | { name?: string }
+                        | undefined;
+                    if (
+                        content &&
+                        typeof content === "object" &&
+                        ctor &&
+                        (ctor.name === "GLib.Bytes" ||
+                            ctor.name?.includes("Bytes"))
+                    ) {
+                        const bytes = content as GLib.Bytes;
+                        if (typeof bytes.get_data === "function") {
+                            data = bytes.get_data();
+                        } else if (
+                            typeof (
+                                bytes as unknown as {
+                                    toArray?: () => Uint8Array | number[];
+                                }
+                            ).toArray === "function"
+                        ) {
+                            data = (
+                                bytes as unknown as {
+                                    toArray: () => Uint8Array | number[];
+                                }
+                            ).toArray();
+                        }
+                    } else if (
+                        content &&
+                        typeof content === "object" &&
+                        "data" in content
+                    ) {
+                        data = (content as { data: Uint8Array | number[] })
+                            .data;
+                    }
+
+                    if (data && data.length > 0) {
+                        const text = new TextDecoder()
+                            .decode(
+                                data instanceof Uint8Array
+                                    ? data
+                                    : new Uint8Array(data),
+                            )
+                            .trim();
+                        if (text) {
+                            this.processClipboardContent(text, "system");
+                        }
+                    }
+                },
+            );
+        } catch (error) {
+            logger.error("Error capturing uri-list data", error);
+            this.clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
+                if (text) this.processClipboardContent(text, "system");
+            });
         }
     }
 
@@ -471,16 +550,35 @@ export class VicinaeClipboardManager {
     }
 
     setContent(content: string): void {
-        if (this.clipboard) {
-            try {
+        if (!this.clipboard) return;
+
+        try {
+            if (isFileUri(content)) {
+                const uris = parseFileUris(content);
+                const uriListBytes = toUriListFormat(uris);
+                if (uriListBytes.length > 0) {
+                    this.clipboard.set_content(
+                        St.ClipboardType.CLIPBOARD,
+                        "text/uri-list",
+                        uriListBytes,
+                    );
+                    this.clipboard.set_content(
+                        St.ClipboardType.PRIMARY,
+                        "text/uri-list",
+                        uriListBytes,
+                    );
+                    this.currentContent = content;
+                    this.emitClipboardEvent(content, "user");
+                }
+            } else {
                 this.clipboard.set_text(St.ClipboardType.CLIPBOARD, content);
                 this.clipboard.set_text(St.ClipboardType.PRIMARY, content);
 
                 this.currentContent = content;
                 this.emitClipboardEvent(content, "user");
-            } catch (error) {
-                logger.error("Error setting clipboard content", error);
             }
+        } catch (error) {
+            logger.error("Error setting clipboard content", error);
         }
     }
 

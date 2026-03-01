@@ -6,6 +6,7 @@ import { getFocusedWindowApp } from "./window-utils.js";
  */
 export const CLIPBOARD_CONFIG = {
     MAX_CLIPBOARD_SIZE: 10 * 1024 * 1024, // 10MB - reasonable clipboard limit
+    FILE_URI_PREFIX: "file://",
 } as const;
 
 /**
@@ -175,6 +176,48 @@ export function getImageMimeType(
 }
 
 /**
+ * Checks if content is a file URI or newline-separated list of file URIs
+ */
+export function isFileUri(content: string): boolean {
+    if (!content || typeof content !== "string") return false;
+    const trimmed = content.trim();
+    if (!trimmed) return false;
+    return trimmed
+        .split(/\r?\n/)
+        .every((line) =>
+            line.trim().startsWith(CLIPBOARD_CONFIG.FILE_URI_PREFIX),
+        );
+}
+
+/**
+ * Extracts file URIs from content (handles newline-separated lists, filters comments)
+ */
+export function parseFileUris(content: string): string[] {
+    if (!content || typeof content !== "string") return [];
+    return content
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(
+            (line) =>
+                line &&
+                !line.startsWith("#") &&
+                line.startsWith(CLIPBOARD_CONFIG.FILE_URI_PREFIX),
+        );
+}
+
+/**
+ * Builds text/uri-list format bytes (one URI per line, UTF-8)
+ */
+export function toUriListFormat(uris: string[]): Uint8Array {
+    const filtered = uris.filter((u) =>
+        u?.startsWith(CLIPBOARD_CONFIG.FILE_URI_PREFIX),
+    );
+    if (filtered.length === 0) return new Uint8Array(0);
+    const text = filtered.join("\n");
+    return new TextEncoder().encode(text);
+}
+
+/**
  * Calculates simplified clipboard metadata for an event
  * Removed unused fields (timestamp, contentType, contentHash, size)
  */
@@ -196,6 +239,8 @@ export function calculateClipboardMetadata(event: {
         // Handle other data URLs
         const match = content.match(/^data:([^;]+);/);
         mimeType = match ? match[1] : "application/octet-stream";
+    } else if (isFileUri(content)) {
+        mimeType = "text/uri-list";
     } else {
         // Text content
         mimeType = "text/plain";
