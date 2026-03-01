@@ -8,6 +8,8 @@ import {
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
+    SignalPayload,
+    SignalPayloadContext,
 } from "./types.js";
 
 const MIME_TYPE = "text/uri-list";
@@ -63,5 +65,16 @@ export class FileHandler implements ClipboardContentHandler {
 
     getMimeType(): string {
         return MIME_TYPE;
+    }
+
+    toSignalPayload(
+        event: { content: string },
+        _context: SignalPayloadContext,
+    ): SignalPayload | null {
+        if (!event.content) return null;
+        return {
+            content: new TextEncoder().encode(event.content),
+            mimeType: MIME_TYPE,
+        };
     }
 }

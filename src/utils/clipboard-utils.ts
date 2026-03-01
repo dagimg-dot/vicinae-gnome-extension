@@ -176,6 +176,29 @@ export function getImageMimeType(
 }
 
 /**
+ * Converts BufferLike to Uint8Array for D-Bus signal emission.
+ */
+export function bufferLikeToUint8Array(buffer: BufferLike): Uint8Array {
+    if (buffer instanceof Uint8Array) {
+        return buffer;
+    }
+
+    if (buffer instanceof ArrayBuffer) {
+        return new Uint8Array(buffer);
+    }
+
+    if (buffer && typeof buffer === "object" && "length" in buffer) {
+        const uint8Array = new Uint8Array(buffer.length);
+        for (let i = 0; i < buffer.length; i++) {
+            uint8Array[i] = buffer[i];
+        }
+        return uint8Array;
+    }
+
+    throw new Error(`Unsupported buffer type: ${typeof buffer}`);
+}
+
+/**
  * Decodes clipboard content (GLib.Bytes or raw array) to Uint8Array.
  */
 export function decodeClipboardBytes(content: unknown): Uint8Array | null {

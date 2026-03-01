@@ -9,6 +9,8 @@ export { TextHandler } from "./text-handler.js";
 export type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
+    SignalPayload,
+    SignalPayloadContext,
 } from "./types.js";
 
 /**

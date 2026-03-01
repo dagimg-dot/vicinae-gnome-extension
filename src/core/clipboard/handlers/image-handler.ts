@@ -1,12 +1,16 @@
 import St from "gi://St";
 import {
+    bufferLikeToUint8Array,
     decodeClipboardBytes,
     getImageMimeType,
     isValidImageBuffer,
 } from "../../../utils/clipboard-utils.js";
+import type { BufferLike } from "../types.js";
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
+    SignalPayload,
+    SignalPayloadContext,
 } from "./types.js";
 
 const IMAGE_MIME_PREFIX = "image/";
@@ -75,5 +79,20 @@ export class ImageHandler implements ClipboardContentHandler {
             return match ? match[1] : "image/png";
         }
         return "image/png";
+    }
+
+    toSignalPayload(
+        event: { content: string },
+        context: SignalPayloadContext,
+    ): SignalPayload | null {
+        if (!event.content.startsWith("[BINARY_IMAGE:")) return null;
+
+        const binaryInfo = context.getBinaryData(event.content);
+        if (!binaryInfo) return null;
+
+        return {
+            content: bufferLikeToUint8Array(binaryInfo.data as BufferLike),
+            mimeType: binaryInfo.mimeType,
+        };
     }
 }

@@ -3,6 +3,8 @@ import { isFileUri } from "../../../utils/clipboard-utils.js";
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
+    SignalPayload,
+    SignalPayloadContext,
 } from "./types.js";
 
 const MIME_TYPES = ["text/plain"] as const;
@@ -56,5 +58,16 @@ export class TextHandler implements ClipboardContentHandler {
             return "text/html";
         }
         return "text/plain";
+    }
+
+    toSignalPayload(
+        event: { content: string },
+        _context: SignalPayloadContext,
+    ): SignalPayload | null {
+        if (!event.content) return null;
+        return {
+            content: new TextEncoder().encode(event.content),
+            mimeType: this.getMimeType(event.content),
+        };
     }
 }

@@ -7,10 +7,13 @@ import {
 } from "../../../utils/clipboard-utils.js";
 import { logger } from "../../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
-import type { BufferLike, ClipboardEvent } from "../../clipboard/types.js";
+import { createHandlers } from "../../clipboard/handlers/index.js";
+import type { ClipboardContentHandler } from "../../clipboard/handlers/types.js";
+import type { ClipboardEvent } from "../../clipboard/types.js";
 
 export class ClipboardService {
     private clipboardManager: VicinaeClipboardManager;
+    private contentHandlers: ClipboardContentHandler[];
     private dbusObject: Gio.DBusExportedObject | null = null;
     private clipboardListener: ((event: ClipboardEvent) => void) | null = null;
     private isListening = false;
@@ -20,6 +23,7 @@ export class ClipboardService {
         _extension?: Extension,
     ) {
         this.clipboardManager = clipboardManager;
+        this.contentHandlers = createHandlers();
         logger.info("ClipboardService initialized with binary-only protocol");
     }
 
@@ -27,10 +31,13 @@ export class ClipboardService {
     setDBusObject(dbusObject: Gio.DBusExportedObject): void {
         this.dbusObject = dbusObject;
 
-        // Set up the clipboard event listener and register it with the manager
+        const signalPayloadContext = {
+            getBinaryData: (marker: string) =>
+                this.clipboardManager.getBinaryData(marker),
+        };
+
         this.clipboardListener = (event: ClipboardEvent) => {
             try {
-                // Skip empty content
                 if (!event.content || event.content.length === 0) {
                     logger.debug("Skipping empty clipboard content");
                     return;
@@ -38,44 +45,38 @@ export class ClipboardService {
 
                 const metadata = calculateClipboardMetadata(event);
 
-                let content: Uint8Array;
-                let finalMimeType = metadata.mimeType;
+                const handler = this.contentHandlers
+                    .slice()
+                    .sort((a, b) => b.priority - a.priority)
+                    .find((h) => h.matchesContent(event.content));
 
-                if (event.content.startsWith("[BINARY_IMAGE:")) {
-                    const binaryInfo = this.clipboardManager.getBinaryData(
-                        event.content,
+                const payload = handler?.toSignalPayload(
+                    event,
+                    signalPayloadContext,
+                );
+
+                if (!payload) {
+                    logger.warn(
+                        `No handler produced payload for content: ${event.content.substring(0, 50)}...`,
                     );
-                    if (binaryInfo) {
-                        content = this.bufferLikeToUint8Array(binaryInfo.data);
-                        finalMimeType = binaryInfo.mimeType;
-
-                        logger.debug(
-                            `Using direct binary data: ${finalMimeType}, ${content.length} bytes`,
-                        );
-                    } else {
-                        logger.warn(
-                            `Binary data not found for marker: ${event.content}`,
-                        );
-                        return;
-                    }
-                } else {
-                    // For text content, encode as UTF-8
-                    content = new TextEncoder().encode(event.content);
+                    return;
                 }
 
-                if (content.length > CLIPBOARD_CONFIG.MAX_CLIPBOARD_SIZE) {
+                if (
+                    payload.content.length > CLIPBOARD_CONFIG.MAX_CLIPBOARD_SIZE
+                ) {
                     logger.warn(
-                        `Clipboard data too large: ${content.length} bytes, skipping`,
+                        `Clipboard data too large: ${payload.content.length} bytes, skipping`,
                     );
                     return;
                 }
 
                 logger.debug(
-                    `Processing clipboard: ${finalMimeType}, ${content.length} bytes from ${metadata.sourceApp}`,
+                    `Processing clipboard: ${payload.mimeType}, ${payload.content.length} bytes from ${metadata.sourceApp}`,
                 );
 
-                this.emitBinarySignal(content, {
-                    mimeType: finalMimeType,
+                this.emitBinarySignal(payload.content, {
+                    mimeType: payload.mimeType,
                     sourceApp: metadata.sourceApp,
                 });
             } catch (signalError) {
@@ -94,31 +95,10 @@ export class ClipboardService {
             }
         };
 
-        // Register the listener with the clipboard manager
         this.clipboardManager.onClipboardChange(this.clipboardListener);
         this.isListening = true;
 
         logger.info("📡 Binary-only D-Bus clipboard listener activated");
-    }
-
-    private bufferLikeToUint8Array(buffer: BufferLike): Uint8Array {
-        if (buffer instanceof Uint8Array) {
-            return buffer;
-        }
-
-        if (buffer instanceof ArrayBuffer) {
-            return new Uint8Array(buffer);
-        }
-
-        if (buffer && typeof buffer === "object" && "length" in buffer) {
-            const uint8Array = new Uint8Array(buffer.length);
-            for (let i = 0; i < buffer.length; i++) {
-                uint8Array[i] = buffer[i];
-            }
-            return uint8Array;
-        }
-
-        throw new Error(`Unsupported buffer type: ${typeof buffer}`);
     }
 
     private emitBinarySignal(
