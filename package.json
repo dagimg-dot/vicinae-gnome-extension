@@ -9,6 +9,7 @@
     "@biomejs/biome": "^2.2.2",
     "@girs/gjs": "^4.0.0-beta.25",
     "@girs/gnome-shell": "^48.0.4",
+    "dotenv": "^17.3.1",
     "esbuild": "^0.25.9",
     "esbuild-plugin-tsc": "^0.5.0",
     "esbuild-preserve-whitespace": "^1.1.1",

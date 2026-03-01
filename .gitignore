@@ -12,3 +12,4 @@ node_modules/
 .pre-commit-config.yaml
 result
 .DS_Store
+.env

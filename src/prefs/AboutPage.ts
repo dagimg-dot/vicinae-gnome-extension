@@ -90,7 +90,7 @@ export const AboutPage = GObject.registerClass(
 
             children._extensionName.set_text(metadata.name);
             children._extensionVersion.set_text(
-                `v${metadata["version-name"] || metadata.version}`,
+                `v${metadata["version-name"] || metadata.version}${__VICINAE_ENV_SUFFIX__ ?? ""}`,
             );
 
             if (metadata.url) {
