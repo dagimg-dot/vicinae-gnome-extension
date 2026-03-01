@@ -17,6 +17,8 @@ export interface LauncherConfig {
     appClass: string;
     /** Whether to auto-close on focus loss */
     autoCloseOnFocusLoss: boolean;
+    /** Called when a window is closed by this manager (e.g. focus loss). Use to emit closewindow so the app can sync toggle state. */
+    onWindowClosed?: (windowId: number) => void;
 }
 
 export class LauncherManager {
@@ -128,6 +130,7 @@ export class LauncherManager {
             try {
                 if (this.isValidWindowId(windowId)) {
                     this.windowManager.close(windowId);
+                    this.config.onWindowClosed?.(windowId);
                     logger.debug(
                         `LauncherManager: Successfully closed window ${windowId}`,
                     );

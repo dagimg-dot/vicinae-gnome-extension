@@ -120,10 +120,19 @@ export default class Vicinae extends Extension {
                 throw new Error("Clipboard manager is not initialized");
             }
 
+            const windowsService = this.dbusManager?.getWindowsService();
+
+            if (!windowsService) {
+                throw new Error("Windows service is not initialized");
+            }
+
             this.launcherManager = new LauncherManager(
                 {
                     appClass: appClass,
                     autoCloseOnFocusLoss: autoClose,
+                    onWindowClosed: (windowId) => {
+                        windowsService.emitCloseWindow(windowId.toString());
+                    },
                 },
                 this.clipboardManager,
             );
