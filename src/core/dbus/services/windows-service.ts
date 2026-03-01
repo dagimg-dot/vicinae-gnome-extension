@@ -42,16 +42,19 @@ export class WindowsService {
     private setupWindowEventListeners(): void {
         logger.debug("WindowsService: Setting up GNOME window event listeners");
 
-        this.windowDestroyHandlerId = (global as any).window_manager.connect(
+        this.windowDestroyHandlerId = global.window_manager.connect(
             "destroy",
-            (_wm: unknown, actor: unknown) => {
+            (_wm: unknown, actor: Meta.WindowActor) => {
                 try {
-                    const metaWindow = (actor as Meta.WindowActor)?.meta_window;
+                    const metaWindow = actor.meta_window;
                     if (!metaWindow) return;
+
                     const windowId = metaWindow.get_id();
+
                     logger.debug(
                         `Window ${windowId} destroy signal triggered - emitting closewindow`,
                     );
+
                     this.emitCloseWindow(windowId.toString());
                     this.windowSizeSignalIds.delete(windowId);
                 } catch (error) {
@@ -269,16 +272,17 @@ export class WindowsService {
         if (this.windowOpenedSignalId) {
             global.display.disconnect(this.windowOpenedSignalId);
         }
+
         if (this.windowFocusSignalId) {
             global.display.disconnect(this.windowFocusSignalId);
         }
+
         if (this.workspaceChangedSignalId && global.workspace_manager) {
             global.workspace_manager.disconnect(this.workspaceChangedSignalId);
         }
+
         if (this.windowDestroyHandlerId) {
-            (global as any).window_manager.disconnect(
-                this.windowDestroyHandlerId,
-            );
+            global.window_manager.disconnect(this.windowDestroyHandlerId);
         }
 
         for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
