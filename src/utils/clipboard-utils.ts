@@ -176,6 +176,40 @@ export function getImageMimeType(
 }
 
 /**
+ * Decodes clipboard content (GLib.Bytes or raw array) to Uint8Array.
+ */
+export function decodeClipboardBytes(content: unknown): Uint8Array | null {
+    if (!content || typeof content !== "object") return null;
+
+    const obj = content as Record<string, unknown>;
+    const ctor = obj.constructor as { name?: string } | undefined;
+    const isBytes =
+        ctor?.name === "GLib.Bytes" ||
+        (ctor?.name && String(ctor.name).includes("Bytes"));
+
+    if (isBytes) {
+        const bytes = content as {
+            get_data?: () => Uint8Array | number[];
+            toArray?: () => Uint8Array | number[];
+        };
+        const data =
+            typeof bytes.get_data === "function"
+                ? bytes.get_data()
+                : typeof bytes.toArray === "function"
+                  ? bytes.toArray()
+                  : null;
+        if (data)
+            return data instanceof Uint8Array ? data : new Uint8Array(data);
+    }
+
+    if ("data" in obj && obj.data) {
+        const arr = obj.data as Uint8Array | number[];
+        return arr instanceof Uint8Array ? arr : new Uint8Array(arr);
+    }
+    return null;
+}
+
+/**
  * Checks if content is a file URI or newline-separated list of file URIs
  */
 export function isFileUri(content: string): boolean {

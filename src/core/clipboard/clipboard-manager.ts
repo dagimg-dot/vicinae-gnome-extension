@@ -4,22 +4,18 @@ import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
-import {
-    calculateClipboardMetadata,
-    getImageMimeType,
-    isFileUri,
-    isValidImageBuffer,
-    parseFileUris,
-    toUriListFormat,
-} from "../../utils/clipboard-utils.js";
+import { calculateClipboardMetadata } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
-import type { BufferLike, ClipboardEvent, ImageContent } from "./types.js";
+import { createHandlers } from "./handlers/index.js";
+import type { ClipboardContentHandler } from "./handlers/types.js";
+import type { BufferLike, ClipboardEvent } from "./types.js";
 
 // VirtualKeyboard will be passed from the main extension
 
 export class VicinaeClipboardManager {
     private eventListeners: ((event: ClipboardEvent) => void)[] = [];
     private virtualKeyboard: Clutter.VirtualInputDevice;
+    private contentHandlers: ClipboardContentHandler[] = [];
 
     private currentContent: string = "";
     private clipboard: St.Clipboard | null = null;
@@ -31,6 +27,7 @@ export class VicinaeClipboardManager {
 
     constructor(virtualKeyboard: Clutter.VirtualInputDevice) {
         this.virtualKeyboard = virtualKeyboard;
+        this.contentHandlers = createHandlers();
         this.setupClipboardMonitoring();
     }
 
@@ -160,198 +157,45 @@ export class VicinaeClipboardManager {
                 St.ClipboardType.CLIPBOARD,
             );
 
-            if (mimeTypes.includes("text/uri-list")) {
-                this.captureUriListData();
-            } else {
-                this.clipboard.get_text(
-                    St.ClipboardType.CLIPBOARD,
-                    (_, text) => {
-                        if (text) {
-                            this.processClipboardContent(text, "system");
-                        }
-                    },
+            const handler = this.contentHandlers
+                .slice()
+                .sort((a, b) => b.priority - a.priority)
+                .find((h) => h.matchesMimeTypes(mimeTypes));
+
+            if (handler) {
+                const context =
+                    handler.priority >= 1
+                        ? {
+                              storeBinaryData: (
+                                  marker: string,
+                                  data: unknown,
+                                  mimeType: string,
+                              ) =>
+                                  this.storeBinaryData(
+                                      marker,
+                                      data as BufferLike,
+                                      mimeType,
+                                  ),
+                          }
+                        : undefined;
+
+                handler.capture(
+                    this.clipboard,
+                    (content) =>
+                        this.processClipboardContent(content, "system"),
+                    context,
                 );
             }
 
-            this.clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
-                if (text) {
-                    this.processClipboardContent(text, "system");
-                }
-            });
-
-            if (mimeTypes.length > 0) {
-                if (mimeTypes.some((type) => type.startsWith("image/"))) {
-                    this.captureImageData();
-                }
+            if (handler && handler.priority >= 1) {
+                this.clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
+                    if (text) {
+                        this.processClipboardContent(text, "system");
+                    }
+                });
             }
         } catch (error) {
             logger.error("Error querying clipboard", error);
-        }
-    }
-
-    private captureUriListData() {
-        if (!this.clipboard) return;
-
-        try {
-            this.clipboard.get_content(
-                St.ClipboardType.CLIPBOARD,
-                "text/uri-list",
-                (_: unknown, content: unknown) => {
-                    if (!content) return;
-
-                    let data: Uint8Array | number[] | null = null;
-                    const ctor = content?.constructor as
-                        | { name?: string }
-                        | undefined;
-                    if (
-                        content &&
-                        typeof content === "object" &&
-                        ctor &&
-                        (ctor.name === "GLib.Bytes" ||
-                            ctor.name?.includes("Bytes"))
-                    ) {
-                        const bytes = content as GLib.Bytes;
-                        if (typeof bytes.get_data === "function") {
-                            data = bytes.get_data();
-                        } else if (
-                            typeof (
-                                bytes as unknown as {
-                                    toArray?: () => Uint8Array | number[];
-                                }
-                            ).toArray === "function"
-                        ) {
-                            data = (
-                                bytes as unknown as {
-                                    toArray: () => Uint8Array | number[];
-                                }
-                            ).toArray();
-                        }
-                    } else if (
-                        content &&
-                        typeof content === "object" &&
-                        "data" in content
-                    ) {
-                        data = (content as { data: Uint8Array | number[] })
-                            .data;
-                    }
-
-                    if (data && data.length > 0) {
-                        const text = new TextDecoder()
-                            .decode(
-                                data instanceof Uint8Array
-                                    ? data
-                                    : new Uint8Array(data),
-                            )
-                            .trim();
-                        if (text) {
-                            this.processClipboardContent(text, "system");
-                        }
-                    }
-                },
-            );
-        } catch (error) {
-            logger.error("Error capturing uri-list data", error);
-            this.clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
-                if (text) this.processClipboardContent(text, "system");
-            });
-        }
-    }
-
-    private captureImageData() {
-        if (!this.clipboard) return;
-
-        try {
-            try {
-                this.clipboard.get_content(
-                    St.ClipboardType.CLIPBOARD,
-                    "image/png",
-                    (_: unknown, content: unknown) => {
-                        if (content) {
-                            if (content && typeof content === "object") {
-                                if (
-                                    content.constructor &&
-                                    (content.constructor.name ===
-                                        "GLib.Bytes" ||
-                                        content.constructor.name.includes(
-                                            "GLib.Bytes",
-                                        ) ||
-                                        content.constructor.name.includes(
-                                            "Bytes",
-                                        ))
-                                ) {
-                                    this.extractGLibBytesData(
-                                        content as GLib.Bytes,
-                                    );
-                                } else {
-                                    if (
-                                        content &&
-                                        typeof content === "object" &&
-                                        "data" in content
-                                    ) {
-                                        this.processImageContent(
-                                            content as ImageContent,
-                                        );
-                                    } else {
-                                        this.processClipboardContent(
-                                            "[IMAGE_DATA_AVAILABLE]",
-                                            "system",
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    },
-                );
-            } catch (_contentError) {
-                this.processClipboardContent(
-                    "[IMAGE_DATA_AVAILABLE]",
-                    "system",
-                );
-            }
-        } catch (error) {
-            logger.error("Error capturing image data", error);
-        }
-    }
-
-    private processImageContent(content: ImageContent) {
-        try {
-            if (content.data && content.data.length > 0) {
-                const isValid = isValidImageBuffer(content.data);
-                const detectedMimeType = getImageMimeType(content.data);
-                const finalMimeType = content.mimeType || detectedMimeType;
-
-                if (isValid) {
-                    logger.debug(
-                        `Processed image content: ${finalMimeType}, ${content.data.length} bytes`,
-                    );
-
-                    const binaryMarker = `[BINARY_IMAGE:${finalMimeType}:${content.data.length}]`;
-                    this.storeBinaryData(
-                        binaryMarker,
-                        content.data,
-                        finalMimeType,
-                    );
-
-                    this.processClipboardContent(binaryMarker, "image");
-                } else {
-                    logger.warn(
-                        `Invalid image buffer detected: ${content.data.length} bytes`,
-                    );
-                    this.processClipboardContent(
-                        "[BINARY_DATA_AVAILABLE]",
-                        "system",
-                    );
-                }
-            } else {
-                logger.debug("No image data available in content object");
-                this.processClipboardContent(
-                    "[IMAGE_DATA_AVAILABLE]",
-                    "system",
-                );
-            }
-        } catch (error) {
-            logger.error("Error processing image content", error);
-            this.processClipboardContent("[IMAGE_DATA_AVAILABLE]", "system");
         }
     }
 
@@ -373,66 +217,6 @@ export class VicinaeClipboardManager {
         marker: string,
     ): { data: BufferLike; mimeType: string } | null {
         return this.binaryDataStore.get(marker) || null;
-    }
-
-    private extractGLibBytesData(bytes: GLib.Bytes) {
-        try {
-            if (typeof bytes.get_data === "function") {
-                try {
-                    const data = bytes.get_data();
-
-                    if (data && data.length > 0) {
-                        const isValid = isValidImageBuffer(data);
-                        const mimeType = getImageMimeType(data);
-
-                        if (isValid) {
-                            const binaryMarker = `[BINARY_IMAGE:${mimeType}:${data.length}]`;
-                            this.storeBinaryData(binaryMarker, data, mimeType);
-
-                            logger.debug(
-                                `Extracted GLib.Bytes data: ${mimeType}, ${data.length} bytes`,
-                            );
-                            this.processClipboardContent(binaryMarker, "image");
-                        } else {
-                            logger.warn(
-                                `Invalid image buffer from get_data: ${data.length} bytes`,
-                            );
-                            this.processClipboardContent(
-                                "[BINARY_DATA_AVAILABLE]",
-                                "system",
-                            );
-                        }
-                    }
-                } catch (getDataError) {
-                    logger.error("get_data failed", getDataError);
-                }
-            }
-
-            if (typeof bytes.toArray === "function") {
-                try {
-                    const array = bytes.toArray();
-
-                    if (array && array.length > 0) {
-                        const isValid = isValidImageBuffer(array);
-                        const mimeType = getImageMimeType(array);
-
-                        if (isValid) {
-                            const binaryMarker = `[BINARY_IMAGE:${mimeType}:${array.length}]`;
-                            this.storeBinaryData(binaryMarker, array, mimeType);
-
-                            logger.debug(
-                                `Extracted GLib.Bytes array data: ${mimeType}, ${array.length} bytes`,
-                            );
-                            this.processClipboardContent(binaryMarker, "image");
-                        }
-                    }
-                } catch (toArrayError) {
-                    logger.error("to_array failed", toArrayError);
-                }
-            }
-        } catch (error) {
-            logger.error("Error extracting GLib.Bytes data", error);
-        }
     }
 
     private processClipboardContent(
@@ -553,27 +337,12 @@ export class VicinaeClipboardManager {
         if (!this.clipboard) return;
 
         try {
-            if (isFileUri(content)) {
-                const uris = parseFileUris(content);
-                const uriListBytes = toUriListFormat(uris);
-                if (uriListBytes.length > 0) {
-                    this.clipboard.set_content(
-                        St.ClipboardType.CLIPBOARD,
-                        "text/uri-list",
-                        uriListBytes,
-                    );
-                    this.clipboard.set_content(
-                        St.ClipboardType.PRIMARY,
-                        "text/uri-list",
-                        uriListBytes,
-                    );
-                    this.currentContent = content;
-                    this.emitClipboardEvent(content, "user");
-                }
-            } else {
-                this.clipboard.set_text(St.ClipboardType.CLIPBOARD, content);
-                this.clipboard.set_text(St.ClipboardType.PRIMARY, content);
+            const handler = this.contentHandlers
+                .slice()
+                .sort((a, b) => b.priority - a.priority)
+                .find((h) => h.matchesContent(content));
 
+            if (handler?.set(this.clipboard, content)) {
                 this.currentContent = content;
                 this.emitClipboardEvent(content, "user");
             }
