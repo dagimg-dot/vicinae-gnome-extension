@@ -1,18 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-# Usage: ./setup.sh user@vm-ip
-# Generates dev-{project-name}.sh script and sets up VM for development
+PORT=22
+VM_TARGET=""
 
-if [ "${1:-}" = "" ]; then
-    echo "Usage: $0 user@vm-ip"
-    exit 1
+# Parse arguments to support a custom port
+while [[ $# -gt 0 ]]; do
+	case $1 in
+	-p | --port)
+		PORT="$2"
+		shift 2
+		;;
+	*)
+		VM_TARGET="$1"
+		shift
+		;;
+	esac
+done
+
+if [ -z "$VM_TARGET" ]; then
+	echo "Usage: $0 [-p port] user@vm-ip  (port defaults to 22)"
+	echo "Example for GNOME Boxes Tunnel: $0 -p 2222 jdev@localhost"
+	exit 1
 fi
 
-VM_TARGET="$1"
-
 # Get the script directory
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 # Get the project directory (parent of scripts)
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -24,36 +37,29 @@ echo "Project path: $PROJECT_ABSOLUTE_PATH"
 
 # Helper function to get machine IP
 get_machine_ip() {
-    # Try to get the IP address used for SSH connections
-    # First try to get the IP from the default route
-    local ip
-    ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1)
-    
-    # If that fails, try to get the IP from network interfaces
-    if [ -z "$ip" ]; then
-        ip=$(ip addr show | grep -oP 'inet \K192\.168\.\d+\.\d+' | head -1 || true)
-    fi
-    
-    # If still no IP, try alternative methods
-    if [ -z "$ip" ]; then
-        ip=$(hostname -I | awk '{print $1}' || true)
-    fi
-    
-    # Fallback to localhost if nothing else works
-    if [ -z "$ip" ]; then
-        echo "ERROR: Could not detect machine IP" >&2
-        exit 1
-    fi
-    
-    echo "$ip"
+	local ip
+	ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1)
+
+	if [ -z "$ip" ]; then
+		ip=$(ip addr show | grep -oP 'inet \K192\.168\.\d+\.\d+' | head -1 || true)
+	fi
+	if [ -z "$ip" ]; then
+		ip=$(hostname -I | awk '{print $1}' || true)
+	fi
+	if [ -z "$ip" ]; then
+		echo "ERROR: Could not detect machine IP" >&2
+		exit 1
+	fi
+
+	echo "$ip"
 }
 
 # Helper function to construct host specification
 get_host_spec() {
-    local project_path="$1"
-    local machine_ip
-    machine_ip=$(get_machine_ip)
-    echo "$(whoami)@${machine_ip}:${project_path}"
+	local project_path="$1"
+	local machine_ip
+	machine_ip=$(get_machine_ip)
+	echo "$(whoami)@${machine_ip}:${project_path}"
 }
 
 # Generate the dev script
@@ -62,8 +68,7 @@ DEV_SCRIPT_PATH="${SCRIPT_DIR}/${DEV_SCRIPT_NAME}"
 
 echo "Generating ${DEV_SCRIPT_NAME}..."
 
-# Create the dev script content
-cat > "$DEV_SCRIPT_PATH" << EOF
+cat >"$DEV_SCRIPT_PATH" <<EOF
 #!/bin/bash
 set -euo pipefail
 
@@ -82,29 +87,45 @@ cd "\$MOUNT_POINT" || { echo "Failed to change directory to \$MOUNT_POINT"; exit
 exec "\${SHELL:-/bin/bash}" -i
 EOF
 
-# Make the generated script executable
 chmod +x "$DEV_SCRIPT_PATH"
 
 echo "Generated ${DEV_SCRIPT_NAME} with host spec: $(get_host_spec "$PROJECT_ABSOLUTE_PATH")"
 
-# Copy the dev script to the VM
+# Copy the dev script to the VM using the correct port flag (-P for scp)
 echo "Copying ${DEV_SCRIPT_NAME} to $VM_TARGET:~/"
-scp "$DEV_SCRIPT_PATH" "$VM_TARGET:~/"
+scp -P "$PORT" "$DEV_SCRIPT_PATH" "$VM_TARGET:~/"
 
-# Setup VM (install sshfs, create mountpoint, set permissions)
+# Setup VM using the correct port flag (-p for ssh)
 echo "Preparing VM (install sshfs, create mountpoint, set permissions)..."
-ssh -t "$VM_TARGET" "\
-    set -e; \
-    if ! command -v sshfs >/dev/null 2>&1; then \
-      if command -v dnf >/dev/null 2>&1; then \
-        sudo dnf install -y fuse-sshfs >/dev/null; \
-      elif command -v apt >/dev/null 2>&1; then \
-        sudo apt update >/dev/null && sudo apt install -y sshfs >/dev/null; \
-      fi; \
-    fi; \
-    mkdir -p /mnt/host; \
-    chmod +x ~/${DEV_SCRIPT_NAME}; \
-    echo 'Setup complete on VM.' \
-" >/dev/null
+
+# Run via bash explicitly so it works when the VM's login shell is fish (or other non-bash).
+# Copy script to remote first so ssh -t gets a real TTY (needed for sudo password prompts).
+REMOTE_SETUP_SCRIPT=$(
+	cat <<REMOTE_EOF
+set -e
+if ! command -v sshfs >/dev/null 2>&1; then
+  echo 'Installing sshfs...'
+  if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y fuse-sshfs
+  elif command -v apt >/dev/null 2>&1; then
+    sudo apt update && sudo apt install -y sshfs
+  fi
+fi
+echo 'Setting up /mnt/host permissions...'
+sudo mkdir -p /mnt/host
+sudo chown -R \$USER:\$USER /mnt/host
+chmod +x \$HOME/${DEV_SCRIPT_NAME}
+echo 'Setup complete on VM.'
+REMOTE_EOF
+)
+
+TMP_LOCAL=$(mktemp)
+TMP_REMOTE_SCRIPT="/tmp/setup-vicinae-$$.sh"
+
+echo "$REMOTE_SETUP_SCRIPT" >"$TMP_LOCAL"
+
+scp -P "$PORT" -q "$TMP_LOCAL" "$VM_TARGET:$TMP_REMOTE_SCRIPT"
+rm -f "$TMP_LOCAL"
+ssh -p "$PORT" -t "$VM_TARGET" "bash $TMP_REMOTE_SCRIPT && rm -f $TMP_REMOTE_SCRIPT"
 
 echo "All done. On the VM, run: ~/${DEV_SCRIPT_NAME}"
