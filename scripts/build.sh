@@ -152,12 +152,21 @@ function try_restarting_killall {
 }
 
 function try_restarting_gnome_shell() {
+	local use_gdm="${1:-false}"
+
+	# Restart GDM (display manager) - works on Wayland, logs user out
+	if [ "$use_gdm" = true ]; then
+		echo "Restarting GDM (display manager). You will be logged out..."
+		sudo systemctl restart gdm
+		return 0
+	fi
+
 	# Initial check to see if we are running under Wayland. However, just cause
 	# the session type isn't "wayland" doesn't mean we are running under X11.
 	# We could be running something like a "tty" (e. g. via ssh).
 	if [ "$XDG_SESSION_TYPE" = wayland ]; then
-		echo "ERROR: Failed to restart GNOME Shell. You're on Wayland. Restarting GNOME Shell is not supported since it would also kill your entire session. Please use X11, or log out and log back in to apply the changes."
-
+		echo "ERROR: Failed to restart GNOME Shell. You're on Wayland. Restarting GNOME Shell is not supported since it would also kill your entire session."
+		echo "Options: Use X11, log out and log back in, or use --restart-gdm to run 'sudo systemctl restart gdm'."
 		return 1
 	fi
 
@@ -177,11 +186,13 @@ function try_restarting_gnome_shell() {
 	if echo "$result" | grep -q "true"; then
 		echo "SUCCESS: Restart initiated using gdbus."
 	elif echo "$result" | grep -q "Wayland detected"; then
-		echo "ERROR: Failed to restart GNOME Shell. You're on Wayland. Restarting GNOME Shell is not supported since it would also kill your entire session. Please use X11, or log out and log back in to apply the changes."
+		echo "ERROR: Failed to restart GNOME Shell. You're on Wayland. Use --restart-gdm to run 'sudo systemctl restart gdm'."
+		return 1
 	elif echo "$result" | grep -q "false"; then
 		echo "ERROR: Failed to restart GNOME Shell. It looks like you didn't enable GNOME's unsafe mode. Please make sure to enable it and that you're running GNOME on X11."
 		echo "Trying to restart GNOME Shell using killall..."
 		try_restarting_killall
+		echo "Alternatively, use --restart-gdm to run 'sudo systemctl restart gdm'."
 	fi
 
 	return 0
@@ -192,8 +203,12 @@ function install_extension_package() {
 	gnome-extensions install --force "$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip"
 	echo "Extension installed."
 
-	if [ "$1" = "-r" ]; then
-		try_restarting_gnome_shell
+	if [ "$1" = "-r" ] || [ "$RESTART_GDM" = true ]; then
+		if [ "$RESTART_GDM" = true ]; then
+			try_restarting_gnome_shell true
+		else
+			try_restarting_gnome_shell
+		fi
 	else
 		echo "Log out and log back in to apply the changes."
 		echo "After that, if you haven't enabled the extension yet, do so to start using it."
@@ -208,25 +223,28 @@ function enable_extension() {
 
 function usage() {
 	cat <<-EOF
-	Build the zip package for this extension
+		Build the zip package for this extension
 
-	Usage:
-	  $(basename "$0") [OPTION]
+		Usage:
+		  $(basename "$0") [OPTION]
 
-	Options:
-	  -i, --install         Install the extension after building
-	  -r, --unsafe-reload   Build and install the extension, then reload GNOME
-	                        Shell. This is for development purposes as it restarts
-	                        GNOME Shell with an X11 session by relying on the eval
-	                        method. To use the eval method, you need to enable
-	                        GNOME's unsafe mode. So this options is intended for
-	                        safe environments. A dev workflow could look like this:
-	                        Create a VM running GNOME on X11. Create a shared
-	                        folder with your project in it. Develop on the host but
-	                        run the build script within the VM using this option to
-	                        quickly test your extension
-	  --compile-schemas     Compile schemas (not needed after GNOME 45)
-	  -h, --help            Display this help message
+		Options:
+		  -i, --install         Install the extension after building
+		  -r, --unsafe-reload   Build and install the extension, then reload GNOME
+		                        Shell. This is for development purposes as it restarts
+		                        GNOME Shell with an X11 session by relying on the eval
+		                        method. To use the eval method, you need to enable
+		                        GNOME's unsafe mode. So this options is intended for
+		                        safe environments. A dev workflow could look like this:
+		                        Create a VM running GNOME on X11. Create a shared
+		                        folder with your project in it. Develop on the host but
+		                        run the build script within the VM using this option to
+		                        quickly test your extension
+		  --restart-gdm         Use 'systemctl restart gdm' to apply changes instead of
+		                        gdbus/killall. Works on Wayland (logs you out). Use with
+		                        -i or -r.
+		  --compile-schemas     Compile schemas (not needed after GNOME 45)
+		  -h, --help            Display this help message
 	EOF
 }
 
@@ -255,6 +273,7 @@ fi
 INSTALL=false
 UNSAFE_RELOAD=false
 BUILD=false
+RESTART_GDM=false
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -268,6 +287,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--unsafe-reload | -r)
 			UNSAFE_RELOAD=true
+			shift
+			;;
+		--restart-gdm)
+			RESTART_GDM=true
 			shift
 			;;
 		--compile-schemas)
