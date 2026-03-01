@@ -30,6 +30,6 @@
     "check:types": "tsc -noEmit",
     "bump": "bun scripts/bump-version.js bump",
     "release": "bun scripts/bump-version.js release",
-    "update-credits": "./scripts/update-contrib.sh"
+    "update-credits": "node scripts/update-contrib.js"
   }
 }
