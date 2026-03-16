@@ -156,7 +156,10 @@ export class WindowTracker {
         if (this.isDestroying) return;
 
         try {
-            const { x, y } = this.getCenterPosition(window);
+            const pos = this.getCenterPosition(window);
+            if (!pos) return;
+
+            const { x, y } = pos;
             window.move_frame(true, x, y);
 
             logger.debug(
@@ -169,9 +172,18 @@ export class WindowTracker {
         }
     }
 
-    private getCenterPosition(window: Meta.Window): { x: number; y: number } {
+    private getCenterPosition(window: Meta.Window): { x: number; y: number } | null {
         const monitor = window.get_monitor();
         const display = global.display;
+        const nMonitors = display.get_n_monitors();
+
+        if (monitor < 0 || monitor >= nMonitors) {
+            logger.debug(
+                `WindowTracker: Invalid monitor index ${monitor} (n_monitors=${nMonitors}), skipping center`,
+            );
+            return null;
+        }
+
         const monitorGeometry = display.get_monitor_geometry(monitor);
 
         const frame = window.get_frame_rect();
