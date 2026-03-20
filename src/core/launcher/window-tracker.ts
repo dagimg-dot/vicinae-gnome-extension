@@ -172,7 +172,9 @@ export class WindowTracker {
         }
     }
 
-    private getCenterPosition(window: Meta.Window): { x: number; y: number } | null {
+    private getCenterPosition(
+        window: Meta.Window,
+    ): { x: number; y: number } | null {
         const monitor = window.get_monitor();
         const display = global.display;
         const nMonitors = display.get_n_monitors();
