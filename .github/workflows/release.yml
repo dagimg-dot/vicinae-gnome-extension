@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -31,7 +31,11 @@ jobs:
         run: bun install
 
       - name: Install system dependencies
-        run: sudo apt-get install -y gettext libglib2.0-dev
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext libglib2.0-dev
 
       - name: Build extension
         run: |
