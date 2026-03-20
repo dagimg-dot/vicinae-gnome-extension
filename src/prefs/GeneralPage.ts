@@ -9,6 +9,9 @@ import {
     type BlockedAppRowInstance,
 } from "./components/blocked-app-row.js";
 
+/** GSettings `logging-level` string values, in ComboRow order. */
+const LOGGING_LEVELS: readonly string[] = ["error", "warn", "info", "debug"];
+
 export const GeneralPage = GObject.registerClass(
     {
         GTypeName: "VicinaeGeneralPage",
@@ -36,44 +39,77 @@ export const GeneralPage = GObject.registerClass(
             this.updateAddButtonState();
 
             const children = this as unknown as GeneralPageChildren;
+
+            this.connectAddBlockedAppButton(children);
+            this.bindShowStatusIndicator(settings, children);
+            this.bindLoggingLevel(settings, children);
+            this.bindLauncherAutoCloseFocusLoss(settings, children);
+            this.bindLauncherAppClass(settings, children);
+        }
+
+        /** "Add window class" → append an empty blocked-app row. */
+        private connectAddBlockedAppButton(children: GeneralPageChildren) {
             children._addWindowButton.connect("clicked", () => {
                 this.addEmptyBlockedAppRow();
             });
+        }
 
+        /** `show-status-indicator` ↔ status indicator switch. */
+        private bindShowStatusIndicator(
+            settings: Gio.Settings,
+            children: GeneralPageChildren,
+        ) {
             settings.bind(
                 "show-status-indicator",
                 children._showStatusIndicator,
                 "active",
                 Gio.SettingsBindFlags.DEFAULT,
             );
+        }
 
-            const loggingLevels = ["error", "warn", "info", "debug"];
+        /** `logging-level` ↔ logging ComboRow (not a direct GSettings bind). */
+        private bindLoggingLevel(
+            settings: Gio.Settings,
+            children: GeneralPageChildren,
+        ) {
+            const row = children._loggingLevel;
             const currentLevel = settings.get_string("logging-level");
-            const currentIndex = loggingLevels.indexOf(currentLevel);
-            children._loggingLevel.set_selected(
-                currentIndex >= 0 ? currentIndex : 2,
-            );
+            const currentIndex = LOGGING_LEVELS.indexOf(currentLevel);
 
-            children._loggingLevel.connect("notify::selected", () => {
-                const selectedIndex = children._loggingLevel.get_selected();
+            row.set_selected(currentIndex >= 0 ? currentIndex : 2);
+
+            row.connect("notify::selected", () => {
+                const selectedIndex = row.get_selected();
                 if (
                     selectedIndex >= 0 &&
-                    selectedIndex < loggingLevels.length
+                    selectedIndex < LOGGING_LEVELS.length
                 ) {
                     settings.set_string(
                         "logging-level",
-                        loggingLevels[selectedIndex],
+                        LOGGING_LEVELS[selectedIndex],
                     );
                 }
             });
+        }
 
+        /** `launcher-auto-close-focus-loss` ↔ auto-close switch. */
+        private bindLauncherAutoCloseFocusLoss(
+            settings: Gio.Settings,
+            children: GeneralPageChildren,
+        ) {
             settings.bind(
                 "launcher-auto-close-focus-loss",
                 children._launcherAutoCloseFocusLoss,
                 "active",
                 Gio.SettingsBindFlags.DEFAULT,
             );
+        }
 
+        /** `launcher-app-class` ↔ launcher WM class entry. */
+        private bindLauncherAppClass(
+            settings: Gio.Settings,
+            children: GeneralPageChildren,
+        ) {
             settings.bind(
                 "launcher-app-class",
                 children._launcherAppClass,
