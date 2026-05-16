@@ -216,7 +216,25 @@ export class VicinaeClipboardManager {
     getBinaryData(
         marker: string,
     ): { data: BufferLike; mimeType: string } | null {
-        return this.binaryDataStore.get(marker) || null;
+        const entry = this.binaryDataStore.get(marker);
+        logger.debug(
+            `getBinaryData: looking up "${marker}", found: ${entry !== null && entry !== undefined}`,
+        );
+        return entry || null;
+    }
+
+    clearBinaryDataStore(marker?: string): void {
+        if (marker) {
+            logger.debug(
+                `clearBinaryDataStore: clearing marker "${marker}", store size: ${this.binaryDataStore.size}`,
+            );
+            this.binaryDataStore.delete(marker);
+        } else {
+            logger.debug(
+                `clearBinaryDataStore: clearing all ${this.binaryDataStore.size} entries`,
+            );
+            this.binaryDataStore.clear();
+        }
     }
 
     private processClipboardContent(
@@ -229,6 +247,9 @@ export class VicinaeClipboardManager {
         }
 
         if (!text || text === this.currentContent) {
+            if (this.binaryDataStore.has(text)) {
+                this.binaryDataStore.delete(text);
+            }
             return;
         }
 
@@ -463,6 +484,10 @@ export class VicinaeClipboardManager {
 
         this.eventListeners = [];
         this.currentContent = "";
+        logger.debug(
+            `destroy: clearing binary store with ${this.binaryDataStore.size} entries`,
+        );
+        this.binaryDataStore.clear();
         this.clipboard = null;
         this.selection = null;
         logger.info("Clipboard manager destroyed");
