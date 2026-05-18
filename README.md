@@ -31,7 +31,6 @@
   - auto-centers
   - stays on top
   - gracefully closes when you click away
-- Paste directly to focused window from vicinae clipboard history view
 
 ## Installation
 
