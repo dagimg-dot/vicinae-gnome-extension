@@ -11,7 +11,7 @@
     "50"
   ],
   "settings-schema": "org.gnome.shell.extensions.vicinae",
-  "version-name": "1.6.1",
-  "version": 13,
+  "version-name": "1.6.2",
+  "version": 14,
   "url": "https://github.com/dagimg-dot/vicinae-gnome-extension"
 }
