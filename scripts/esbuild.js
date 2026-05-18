@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import * as esbuild from "esbuild";
-import { esbuildPreserveWhitespacePlugin } from "esbuild-preserve-whitespace";
+import { esbuildPreserveWhitespacePlugin } from "esbuild-preserve-whitespace"; // I made this plugin btw ☝️🤓 https://github.com/dagimg-dot/esbuild-preserve-whitespace
 
 const projectRoot = join(fileURLToPath(import.meta.url), "..", "..");
 config({ path: join(projectRoot, ".env") });
