@@ -13,13 +13,13 @@ function compile_resources() {
 
 	mkdir -p "$(dirname "$RESOURCE_XML")"
 
-	cat <<-EOF > "$RESOURCE_XML"
+	cat <<-EOF >"$RESOURCE_XML"
 		<?xml version='1.0' encoding='UTF-8'?>
 		<gresources>
 		  <gresource>
 				$(find data/ -type f | while read -r FILE; do
-					echo "    <file>${FILE#"data/"}</file>"
-				done)
+			echo "    <file>${FILE#"data/"}</file>"
+		done)
 		  </gresource>
 		</gresources>
 	EOF
@@ -35,7 +35,7 @@ function compile_resources() {
 	echo "Resources compiled."
 }
 
-function compile_schemas(){
+function compile_schemas() {
 	echo "Compiling schemas..."
 
 	glib-compile-schemas \
@@ -57,7 +57,7 @@ function compile_translations() {
 function build_extension_package() {
 	# Compile TypeScript files, if used
 	if [ "$USING_TYPESCRIPT" = "true" ]; then
-		if ! (command -v bun &> /dev/null); then
+		if ! (command -v bun &>/dev/null); then
 			echo "ERROR: bun isn't installed. Can't compile TypeScript files. Exiting..."
 
 			exit 1
@@ -71,16 +71,16 @@ function build_extension_package() {
 
 		if ! (find . -maxdepth 1 -type d | grep -q "node_modules"); then
 			echo "Installing dependencies with Bun to compile TypeScript..."
-			bun install > /dev/null
+			bun install >/dev/null
 			echo "Dependencies installed."
 		fi
 
 		echo "Compiling TypeScript files..."
-			if find scripts/ -type f | grep -q "esbuild.js"; then
-				bun ./scripts/esbuild.js
-			else
-				bunx tsc
-			fi
+		if find scripts/ -type f | grep -q "esbuild.js"; then
+			bun ./scripts/esbuild.js
+		else
+			bunx tsc
+		fi
 		echo "Done."
 
 		if find src/ -type f | grep -qv ".ts"; then
@@ -88,7 +88,8 @@ function build_extension_package() {
 			(
 				cd src/
 				find . -type f ! -name '*.ts' | while read -r FILE; do
-					cp --parents "$FILE" ../dist/
+					mkdir -p "../dist/$(dirname "$FILE")"
+					cp "$FILE" "../dist/$FILE"
 				done
 			)
 			echo "Done."
@@ -96,8 +97,8 @@ function build_extension_package() {
 	fi
 
 	# Compile translations, if there are any
-	if (find po/ -type f | grep ".po$") &> /dev/null; then
-		if command -v msgfmt &> /dev/null; then
+	if (find po/ -type f | grep ".po$") &>/dev/null; then
+		if command -v msgfmt &>/dev/null; then
 			compile_translations
 		else
 			echo "WARNING: gettext isn't installed. Skipping compilation of translations..."
@@ -105,24 +106,20 @@ function build_extension_package() {
 	fi
 
 	# Compile resources, if there are any
-	if (find data/ -type f | grep ".") &> /dev/null; then
-		if command -v glib-compile-resources &> /dev/null; then
+	if (find data/ -type f | grep ".") &>/dev/null; then
+		if command -v glib-compile-resources &>/dev/null; then
 			compile_resources
 		else
-			echo "ERROR: glib-compile-resources isn't installed. Resources won't be compiled. This may cause errors for the extension. Please install glib-compile-resources and rebuild the extension. Exiting..."
-
-			exit 1
+			echo "WARNING: glib-compile-resources isn't installed. Resources won't be compiled. The extension may not work correctly without them."
 		fi
 	fi
 
 	# Compile schemas (only if requested, not needed after GNOME 45)
-	if [ "$COMPILE_SCHEMAS" = true ] && (find $JS_DIR/schemas/ -type f | grep ".") &> /dev/null; then
-		if command -v glib-compile-schemas &> /dev/null; then
+	if [ "$COMPILE_SCHEMAS" = true ] && (find $JS_DIR/schemas/ -type f | grep ".") &>/dev/null; then
+		if command -v glib-compile-schemas &>/dev/null; then
 			compile_schemas
 		else
-			echo "ERROR: glib-compile-schemas isn't installed. Schemas won't be compiled. This may cause errors for the extension. Please install glib-compile-schemas and rebuild the extension. Exiting..."
-
-			exit 1
+			echo "WARNING: glib-compile-schemas isn't installed. Schemas won't be compiled."
 		fi
 	fi
 
@@ -131,14 +128,22 @@ function build_extension_package() {
 	(
 		mkdir -p "$BUILD_DIR"
 		rm -f "$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip"
+
 		# Place the gresource at the root of the archive while keeping the built file under build/
-		cp "$RESOURCE_TARGET" "$JS_DIR/"
+		# Only copy if the resource file exists
+		if [ -f "$RESOURCE_TARGET" ]; then
+			cp "$RESOURCE_TARGET" "$JS_DIR/"
+		fi
+
 		# Copy metadata.json and LICENSE to dist/ directory so they're at the root of the zip
 		cp metadata.json "$JS_DIR/"
 		cp LICENSE "$JS_DIR/"
 		cd "$JS_DIR" && zip -qr "../$BUILD_DIR/$UUID.shell-extension-v$VERSION.zip" .
+
 		# Clean up temporary files
-		rm -f "$JS_DIR/$UUID.gresource"
+		if [ -f "$JS_DIR/$UUID.gresource" ]; then
+			rm -f "$JS_DIR/$UUID.gresource"
+		fi
 		rm -f "$JS_DIR/metadata.json"
 		rm -f "$JS_DIR/LICENSE"
 	)
@@ -178,10 +183,10 @@ function try_restarting_gnome_shell() {
 		else Meta.restart(_("Restarting…"), global.context);'
 
 	result=$(gdbus call \
-			--session \
-			--dest org.gnome.Shell \
-			--object-path /org/gnome/Shell \
-			--method org.gnome.Shell.Eval string:"$js")
+		--session \
+		--dest org.gnome.Shell \
+		--object-path /org/gnome/Shell \
+		--method org.gnome.Shell.Eval string:"$js")
 
 	if echo "$result" | grep -q "true"; then
 		echo "SUCCESS: Restart initiated using gdbus."
@@ -252,10 +257,10 @@ function usage() {
 # Main script starts here #
 ###########################
 
-cd -- "$( dirname "$0" )/../"
+cd -- "$(dirname "$0")/../"
 
-UUID=$(grep -oP '"uuid": "\K[^"]+' metadata.json)
-VERSION=$(grep -oP '"version": "\K[^"]+' package.json)
+UUID=$(sed -n 's/.*"uuid": "\([^"]*\)".*/\1/p' metadata.json)
+VERSION=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' package.json)
 BUILD_DIR="build"
 RESOURCE_XML="$BUILD_DIR/$UUID.gresource.xml"
 RESOURCE_TARGET="$BUILD_DIR/$UUID.gresource"
@@ -277,34 +282,34 @@ RESTART_GDM=false
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-		--build | -b)
-			BUILD=true
-			shift
-			;;
-		--install | -i)
-			INSTALL=true
-			shift
-			;;
-		--unsafe-reload | -r)
-			UNSAFE_RELOAD=true
-			shift
-			;;
-		--restart-gdm)
-			RESTART_GDM=true
-			shift
-			;;
-		--compile-schemas)
-			COMPILE_SCHEMAS=true
-			shift
-			;;
-		--help | -h)
-			usage
-			exit 0
-			;;
-		*)
-			echo "Invalid option: $1. Use --help for help."
-			exit 1
-			;;
+	--build | -b)
+		BUILD=true
+		shift
+		;;
+	--install | -i)
+		INSTALL=true
+		shift
+		;;
+	--unsafe-reload | -r)
+		UNSAFE_RELOAD=true
+		shift
+		;;
+	--restart-gdm)
+		RESTART_GDM=true
+		shift
+		;;
+	--compile-schemas)
+		COMPILE_SCHEMAS=true
+		shift
+		;;
+	--help | -h)
+		usage
+		exit 0
+		;;
+	*)
+		echo "Invalid option: $1. Use --help for help."
+		exit 1
+		;;
 	esac
 done
 

@@ -13,3 +13,5 @@ node_modules/
 result
 .DS_Store
 .env
+
+scripts/dev-*.sh

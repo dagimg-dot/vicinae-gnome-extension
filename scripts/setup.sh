@@ -35,17 +35,36 @@ PROJECT_ABSOLUTE_PATH="$(realpath "$PROJECT_DIR")"
 echo "Project detected: $PROJECT_NAME"
 echo "Project path: $PROJECT_ABSOLUTE_PATH"
 
-# Helper function to get machine IP
+# Helper function to get machine IP (Linux & macOS)
 get_machine_ip() {
-	local ip
-	ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1)
+	local ip=""
 
-	if [ -z "$ip" ]; then
-		ip=$(ip addr show | grep -oP 'inet \K192\.168\.\d+\.\d+' | head -1 || true)
+	if [ "$(uname -s)" = "Darwin" ]; then
+		# macOS: get IP from the interface of the default route
+		local iface
+		iface=$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')
+		if [ -n "$iface" ]; then
+			ip=$(ifconfig "$iface" 2>/dev/null | awk '/inet /{print $2; exit}')
+		fi
+		# Fallback: scan common interfaces
+		if [ -z "$ip" ]; then
+			for iface in en0 en1 en2 en3; do
+				ip=$(ifconfig "$iface" 2>/dev/null | awk '/inet /{print $2; exit}')
+				[ -n "$ip" ] && break
+			done
+		fi
+	else
+		# Linux
+		ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1)
+
+		if [ -z "$ip" ]; then
+			ip=$(ip addr show | grep -oP 'inet \K192\.168\.\d+\.\d+' | head -1 || true)
+		fi
+		if [ -z "$ip" ]; then
+			ip=$(hostname -I | awk '{print $1}' || true)
+		fi
 	fi
-	if [ -z "$ip" ]; then
-		ip=$(hostname -I | awk '{print $1}' || true)
-	fi
+
 	if [ -z "$ip" ]; then
 		echo "ERROR: Could not detect machine IP" >&2
 		exit 1
