@@ -20,6 +20,7 @@ export class WindowTracker {
     private windowCreatedHandler?: number;
     private windowDestroyHandler?: number;
     private isDestroying = false;
+    private idleSourceIds: number[] = [];
 
     constructor(
         private appClass: string,
@@ -32,10 +33,11 @@ export class WindowTracker {
             this.windowCreatedHandler = global.display.connect(
                 "window-created",
                 (_display: Meta.Display, window: Meta.Window) => {
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                         this.handleNewWindow(window);
                         return GLib.SOURCE_REMOVE;
                     });
+                    this.idleSourceIds.push(idleId);
                 },
             );
 
@@ -83,6 +85,11 @@ export class WindowTracker {
             global.window_manager.disconnect(this.windowDestroyHandler);
             this.windowDestroyHandler = undefined;
         }
+
+        for (const id of this.idleSourceIds) {
+            GLib.source_remove(id);
+        }
+        this.idleSourceIds = [];
 
         this.trackedWindows.clear();
         this.isDestroying = false;

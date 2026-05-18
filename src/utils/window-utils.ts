@@ -1,17 +1,18 @@
-import type { MetaWindowExtended } from "../types/index.js";
+import type Meta from "gi://Meta";
 
-export const getWindowById = (winid: number) => {
+export const getWindowById = (winid: number): Meta.Window | null => {
     if (!winid || winid <= 0) return null;
 
     try {
         const windowActors = global.get_window_actors();
-        return windowActors.find((w) => {
+        const actor = windowActors.find((w) => {
             try {
                 return w.meta_window && w.meta_window.get_id() === winid;
             } catch {
                 return false;
             }
         });
+        return actor?.meta_window ?? null;
     } catch (_error) {
         return null;
     }
@@ -30,33 +31,32 @@ export const getCurrentTime = () => {
     return global.get_current_time();
 };
 
-export const getFocusedWindow = () => {
+export const getFocusedWindow = (): Meta.Window | null => {
     const windowActors = global.get_window_actors();
-    return windowActors.find((w) => w.meta_window.has_focus());
+    const actor = windowActors.find((w) => w.meta_window?.has_focus());
+    return actor?.meta_window ?? null;
 };
 
 export const getFocusedWindowApp = () => {
     const focusedWindow = getFocusedWindow();
     if (focusedWindow) {
-        // Try to get the application name from wm_class first, then title as fallback
-        const wmClass = focusedWindow.meta_window.get_wm_class();
-        const title = focusedWindow.meta_window.get_title();
+        const wmClass = focusedWindow.get_wm_class();
+        const title = focusedWindow.get_title();
 
-        // Return the most descriptive name available
         return wmClass || title || "unknown";
     }
-    return "gnome-shell"; // Fallback to gnome-shell if no focused window
+    return "gnome-shell";
 };
 
 /**
  * Starting from GNOME 49, the method is_maximized() is available on the Window object.
- * This is used to check if a window is maximized.
  * For older versions, we use get_maximized() instead.
  */
-export const isMaximized = (win: MetaWindowExtended) => {
+export const isMaximized = (win: Meta.Window) => {
     if (win.is_maximized !== undefined) {
         return win.is_maximized();
     }
 
+    // @ts-expect-error - get_maximized is not in the type definitions for GNOME 49+
     return win.get_maximized();
 };

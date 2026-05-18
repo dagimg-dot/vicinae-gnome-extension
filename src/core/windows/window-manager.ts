@@ -1,5 +1,5 @@
 import GLib from "gi://GLib";
-import Meta from "gi://Meta";
+import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import {
     getCurrentTime,
@@ -62,54 +62,54 @@ export class VicinaeWindowManager implements WindowManager {
         const windowActors = global.get_window_actors();
         const workspaceManager = global.workspace_manager;
 
-        const windows = windowActors.map((w) => {
-            const metaWindow = w.meta_window;
-            const windowWorkspace = metaWindow.get_workspace();
-            const frame = metaWindow.get_frame_rect();
+        const windows = windowActors
+            .map((w) => w.meta_window)
+            .filter((mw): mw is Meta.Window => mw !== null)
+            .map((metaWindow) => {
+                const windowWorkspace = metaWindow.get_workspace();
+                const frame = metaWindow.get_frame_rect();
 
-            // Explicitly construct the object to be type-safe
-            return {
-                id: metaWindow.get_id(),
-                title: metaWindow.get_title(),
-                wm_class: metaWindow.get_wm_class() || "",
-                wm_class_instance: metaWindow.get_wm_class_instance() || "",
-                pid: metaWindow.get_pid(),
-                maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
-                display: metaWindow.get_display(),
-                frame_type: metaWindow.get_frame_type(),
-                window_type: metaWindow.get_window_type(),
-                layer: metaWindow.get_layer(),
-                monitor: metaWindow.get_monitor(),
-                role: metaWindow.get_role(),
-                width: frame.width,
-                height: frame.height,
-                x: frame.x,
-                y: frame.y,
-                in_current_workspace: metaWindow.located_on_workspace?.(
-                    workspaceManager.get_active_workspace?.(),
-                ),
-                canclose: metaWindow.can_close(),
-                canmaximize: metaWindow.can_maximize(),
-                canminimize: metaWindow.can_minimize(),
-                canshade: false, // can_shade() is not in the type definitions
-                moveable: metaWindow.allows_move(),
-                resizeable: metaWindow.allows_resize(),
-                has_focus: metaWindow.has_focus(),
-                workspace: windowWorkspace ? windowWorkspace.index() : -1,
-            };
-        });
+                // Explicitly construct the object to be type-safe
+                return {
+                    id: metaWindow.get_id(),
+                    title: metaWindow.get_title(),
+                    wm_class: metaWindow.get_wm_class() || "",
+                    wm_class_instance: metaWindow.get_wm_class_instance() || "",
+                    pid: metaWindow.get_pid(),
+                    maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
+                    display: metaWindow.get_display(),
+                    frame_type: metaWindow.get_frame_type(),
+                    window_type: metaWindow.get_window_type(),
+                    layer: metaWindow.get_layer(),
+                    monitor: metaWindow.get_monitor(),
+                    role: metaWindow.get_role(),
+                    width: frame.width,
+                    height: frame.height,
+                    x: frame.x,
+                    y: frame.y,
+                    in_current_workspace: metaWindow.located_on_workspace?.(
+                        workspaceManager.get_active_workspace?.(),
+                    ),
+                    canclose: metaWindow.can_close(),
+                    canmaximize: metaWindow.can_maximize(),
+                    canminimize: metaWindow.can_minimize(),
+                    canshade: false, // can_shade() is not in the type definitions
+                    moveable: metaWindow.allows_move(),
+                    resizeable: metaWindow.allows_resize(),
+                    has_focus: metaWindow.has_focus(),
+                    workspace: windowWorkspace ? windowWorkspace.index() : -1,
+                };
+            });
 
         return windows as unknown as WindowInfo[];
     }
 
     details(winid: number): WindowInfo {
-        const w = getWindowById(winid);
+        const metaWindow = getWindowById(winid);
 
-        if (!w) {
+        if (!metaWindow) {
             throw new Error("Window not found");
         }
-
-        const metaWindow = w.meta_window;
         const workspaceManager = global.workspace_manager;
         const windowWorkspace = metaWindow.get_workspace();
         const frame = metaWindow.get_frame_rect();
@@ -151,7 +151,7 @@ export class VicinaeWindowManager implements WindowManager {
     getTitle(winid: number): string {
         const w = getWindowById(winid);
         if (w) {
-            return w.meta_window.get_title();
+            return w.get_title();
         } else {
             throw new Error("Window not found");
         }
@@ -160,7 +160,7 @@ export class VicinaeWindowManager implements WindowManager {
     getFrameRect(winid: number): FrameRect {
         const w = getWindowById(winid);
         if (w) {
-            const frame = w.meta_window.get_frame_rect();
+            const frame = w.get_frame_rect();
             return {
                 x: frame.x,
                 y: frame.y,
@@ -176,9 +176,7 @@ export class VicinaeWindowManager implements WindowManager {
         const w = getWindowById(winid);
         if (w) {
             return {
-                frame_bounds: (
-                    w.meta_window as MetaWindowWithExtras
-                ).get_frame_bounds(),
+                frame_bounds: (w as MetaWindowWithExtras).get_frame_bounds(),
             };
         } else {
             throw new Error("Window not found");
@@ -186,7 +184,7 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     moveToWorkspace(winid: number, workspaceNum: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
             win.change_workspace_by_index(workspaceNum, false);
         } else {
@@ -204,14 +202,11 @@ export class VicinaeWindowManager implements WindowManager {
         const win = getWindowById(winid);
 
         if (win) {
-            if (
-                win.meta_window.maximized_horizontally ||
-                win.meta_window.maximized_vertically
-            ) {
-                win.meta_window.unmaximize(Meta.MaximizeFlags.BOTH);
+            if (win.maximized_horizontally || win.maximized_vertically) {
+                win.unmaximize();
             }
 
-            win.meta_window.move_resize_frame(true, x, y, width, height);
+            win.move_resize_frame(true, x, y, width, height);
         } else {
             throw new Error("Window not found");
         }
@@ -220,19 +215,11 @@ export class VicinaeWindowManager implements WindowManager {
     resize(winid: number, width: number, height: number): void {
         const win = getWindowById(winid);
         if (win) {
-            if (
-                win.meta_window.maximized_horizontally ||
-                win.meta_window.maximized_vertically
-            ) {
-                win.meta_window.unmaximize(Meta.MaximizeFlags.BOTH);
+            if (win.maximized_horizontally || win.maximized_vertically) {
+                win.unmaximize();
             }
-            win.meta_window.move_resize_frame(
-                true,
-                win.get_x(),
-                win.get_y(),
-                width,
-                height,
-            );
+            const frame = win.get_frame_rect();
+            win.move_resize_frame(true, frame.x, frame.y, width, height);
         } else {
             throw new Error("Window not found");
         }
@@ -241,29 +228,26 @@ export class VicinaeWindowManager implements WindowManager {
     move(winid: number, x: number, y: number): void {
         const win = getWindowById(winid);
         if (win) {
-            if (
-                win.meta_window.maximized_horizontally ||
-                win.meta_window.maximized_vertically
-            ) {
-                win.meta_window.unmaximize(Meta.MaximizeFlags.BOTH);
+            if (win.maximized_horizontally || win.maximized_vertically) {
+                win.unmaximize();
             }
-            win.meta_window.move_frame(true, x, y);
+            win.move_frame(true, x, y);
         } else {
             throw new Error("Window not found");
         }
     }
 
     maximize(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
-            win.maximize(Meta.MaximizeFlags.BOTH);
+            win.maximize();
         } else {
             throw new Error("Window not found");
         }
     }
 
     minimize(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
             win.minimize();
         } else {
@@ -272,16 +256,16 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     unmaximize(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
-            win.unmaximize(Meta.MaximizeFlags.BOTH);
+            win.unmaximize();
         } else {
             throw new Error("Window not found");
         }
     }
 
     unminimize(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
             win.unminimize();
         } else {
@@ -290,7 +274,7 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     activate(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
             const currentTime = getCurrentTime();
             const workspace = win.get_workspace();
@@ -305,7 +289,7 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     close(winid: number): void {
-        const win = getWindowById(winid)?.meta_window;
+        const win = getWindowById(winid);
         if (win) {
             try {
                 // Check if window is still valid before attempting to close

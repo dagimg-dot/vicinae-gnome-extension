@@ -8,7 +8,7 @@ import { Icons } from "../lib/icons.js";
 import { logger } from "../utils/logger.js";
 
 export class VicinaeIndicator {
-    private indicator: PanelMenu.Button;
+    private indicator: PanelMenu.Button | null;
     private extension: Extension;
 
     constructor(extension: Extension) {
@@ -56,7 +56,7 @@ export class VicinaeIndicator {
             style_class: "system-status-icon",
         });
 
-        this.indicator.add_child(icon);
+        this.indicator?.add_child(icon);
     }
 
     private setupMenu() {
@@ -66,18 +66,21 @@ export class VicinaeIndicator {
             this.extension.openPreferences();
         });
 
-        if (this.indicator.menu && "addMenuItem" in this.indicator.menu) {
-            this.indicator.menu.addMenuItem(settingsItem);
+        const menu = this.indicator?.menu;
+        if (menu && "addMenuItem" in menu) {
+            menu.addMenuItem(settingsItem);
         }
     }
 
     getButton(): PanelMenu.Button {
-        return this.indicator;
+        // biome-ignore lint/style/noNonNullAssertion: called from createOrUpdate right after construction
+        return this.indicator!;
     }
 
     destroy() {
         if (this.indicator) {
             this.indicator.destroy();
+            this.indicator = null;
         }
     }
 }

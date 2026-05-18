@@ -523,8 +523,7 @@ export class WindowsService {
                 return JSON.stringify(null);
             }
 
-            const currentWmClass =
-                focusedWindow.meta_window.get_wm_class() || "";
+            const currentWmClass = focusedWindow.get_wm_class() || "";
 
             // If current focused window is Vicinae, return previous window
             if (this.windowManager.isTargetWindow(currentWmClass)) {
@@ -553,7 +552,7 @@ export class WindowsService {
             );
 
             const windowDetails = this.windowManager.details(
-                focusedWindow.meta_window.get_id(),
+                focusedWindow.get_id(),
             );
 
             return JSON.stringify(windowDetails);

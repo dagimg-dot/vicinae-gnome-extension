@@ -40,7 +40,7 @@ export class ClipboardService {
         };
 
         this.clipboardListener = (event: ClipboardEvent) => {
-            let payload: SignalPayload | null;
+            let payload: SignalPayload | null = null;
 
             try {
                 if (!event.content || event.content.length === 0) {

@@ -3,8 +3,19 @@ import Gdk from "gi://Gdk";
 import type Gio from "gi://Gio";
 import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
-import type { ExtensionMetadata } from "@girs/gnome-shell/extensions/extension";
 import { Icons } from "../lib/icons.js";
+
+interface ExtensionMetadata {
+    path?: string;
+    name: string;
+    description: string;
+    uuid: string;
+    version?: string;
+    "version-name"?: string;
+    "shell-version": readonly string[];
+    url?: string;
+}
+
 import type { AboutPageChildren, Credit } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
 
@@ -97,7 +108,8 @@ export const AboutPage = GObject.registerClass(
         setMetadata(metadata: ExtensionMetadata) {
             const children = this as unknown as AboutPageChildren;
 
-            new Icons(metadata.path);
+            // biome-ignore lint/style/noNonNullAssertion: path is always provided by GNOME Shell
+            new Icons(metadata.path!);
 
             const vicinaeIcon = Icons.get("vicinae") as Gio.Icon;
 
@@ -126,7 +138,8 @@ export const AboutPage = GObject.registerClass(
 
             children._extensionLicense.buffer.set_text(LICENSE, -1);
 
-            this.renderCredits(children, metadata.path);
+            // biome-ignore lint/style/noNonNullAssertion: path is always provided by GNOME Shell
+            this.renderCredits(children, metadata.path!);
         }
 
         private renderCredits(children: AboutPageChildren, path: string) {

@@ -43,30 +43,28 @@ export const initializeLogger = (settings: Gio.Settings) => {
     log(LogLevel.INFO, `Logger initialized with level: ${levelString}`);
 };
 
-const log = (level: LogLevel, message: string, data?: unknown) => {
-    // Early return if log level is too low
-    if (level > currentLogLevel) {
-        return;
+// Single write function — all console output routes through here
+const write = (prefix: string, message: string, data?: unknown) => {
+    const lines = [`${prefix}: ${message}`];
+    if (data) {
+        if (typeof data === "object" && data !== null) {
+            Object.entries(data).forEach(([key, value]) => {
+                lines.push(`${prefix}:   ${key}: ${value}`);
+            });
+        } else {
+            lines.push(`${prefix}: ${data}`);
+        }
     }
+    console.log(lines.join("\n"));
+};
+
+const log = (level: LogLevel, message: string, data?: unknown) => {
+    if (level > currentLogLevel) return;
 
     const timestamp = new Date().toISOString();
     const levelName = LogLevel[level];
     const prefix = `[${PROJECT_NAME}] ${timestamp} ${levelName}`;
-
-    if (data) {
-        console.log(`${prefix}: ${message}`);
-
-        // Display each property individually to avoid GNOME Shell truncation
-        if (typeof data === "object" && data !== null) {
-            Object.entries(data).forEach(([key, value]) => {
-                console.log(`${prefix}:   ${key}: ${value}`);
-            });
-        } else {
-            console.log(`${prefix}: ${data}`);
-        }
-    } else {
-        console.log(`${prefix}: ${message}`);
-    }
+    write(prefix, message, data);
 };
 
 const debug = (message: string, data?: unknown) => {
@@ -84,13 +82,7 @@ const warn = (message: string, data?: unknown) => {
 const error = (message: string, error?: unknown) => {
     const timestamp = new Date().toISOString();
     const prefix = `[${PROJECT_NAME}] ${timestamp} ERROR`;
-
-    if (error) {
-        console.error(`${prefix}: ${message}`);
-        console.error(`${prefix}: ${String(error)}`);
-    } else {
-        console.error(`${prefix}: ${message}`);
-    }
+    write(prefix, message, error ? String(error) : undefined);
 };
 
 export const logger = {
