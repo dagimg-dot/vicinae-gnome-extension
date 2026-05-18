@@ -41,7 +41,7 @@ export class ClipboardService {
 
         this.clipboardListener = (event: ClipboardEvent) => {
             let payload: SignalPayload | null;
-            
+
             try {
                 if (!event.content || event.content.length === 0) {
                     logger.debug("Skipping empty clipboard content");

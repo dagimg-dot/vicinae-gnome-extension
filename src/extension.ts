@@ -1,7 +1,6 @@
 import Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
 import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
-import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
@@ -22,20 +21,19 @@ const getVirtualKeyboard = (() => {
 })();
 
 export default class Vicinae extends Extension {
-    private indicator!: VicinaeIndicator | null;
-    private dbusManager!: DBusManager | null;
-    private clipboardManager!: VicinaeClipboardManager | null;
-    private launcherManager!: LauncherManager | null;
-    private settings!: Gio.Settings | null;
-    private settingsConnection!: number;
-    private launcherSettingsConnection!: number;
-    private blockedAppsConnection!: number;
+    private indicator: VicinaeIndicator | null = null;
+    private dbusManager: DBusManager | null = null;
+    private clipboardManager: VicinaeClipboardManager | null = null;
+    private launcherManager: LauncherManager | null = null;
+    private settings: Gio.Settings | null = null;
+    private settingsConnection: number = 0;
+    private launcherSettingsConnection: number = 0;
+    private blockedAppsConnection: number = 0;
 
     async enable() {
         logger.info("Vicinae extension enabled");
 
         this.settings = this.getSettings();
-
         initializeLogger(this.settings);
 
         this.clipboardManager = new VicinaeClipboardManager(
@@ -53,22 +51,48 @@ export default class Vicinae extends Extension {
         );
         this.dbusManager.exportServices();
 
-        logger.debug("Extension: Initializing launcher manager...");
-        await this.initializeLauncherManager();
+        this.indicator = VicinaeIndicator.createOrUpdate(
+            this.settings,
+            this,
+            null,
+        );
 
-        this.updateIndicatorVisibility();
+        logger.debug("Extension: Initializing launcher manager...");
+        this.launcherManager = await LauncherManager.create(
+            this.settings,
+            this.clipboardManager,
+            this.dbusManager.getWindowsService(),
+        );
 
         this.settingsConnection = this.settings.connect(
             "changed::show-status-indicator",
             () => {
-                this.updateIndicatorVisibility();
+                if (!this.settings) return;
+                this.indicator = VicinaeIndicator.createOrUpdate(
+                    this.settings,
+                    this,
+                    this.indicator,
+                );
             },
         );
 
         this.launcherSettingsConnection = this.settings.connect(
             "changed::launcher-auto-close-focus-loss",
             () => {
-                this.updateLauncherManager();
+                if (
+                    !this.settings ||
+                    !this.clipboardManager ||
+                    !this.dbusManager
+                )
+                    return;
+                LauncherManager.updateOrDestroy(
+                    this.settings,
+                    this.clipboardManager,
+                    this.dbusManager.getWindowsService(),
+                    this.launcherManager,
+                ).then((mgr) => {
+                    this.launcherManager = mgr;
+                });
             },
         );
 
@@ -85,90 +109,6 @@ export default class Vicinae extends Extension {
         );
 
         logger.info("Vicinae extension initialized successfully");
-    }
-
-    private updateIndicatorVisibility() {
-        const shouldShow = this.settings?.get_boolean("show-status-indicator");
-
-        if (shouldShow && !this.indicator) {
-            this.indicator = new VicinaeIndicator(this);
-            Main.panel.addToStatusArea(
-                "vicinae-gnome-extension",
-                this.indicator.getButton(),
-                0,
-                "right",
-            );
-            logger.debug("Vicinae indicator shown");
-        } else if (!shouldShow && this.indicator) {
-            this.indicator.destroy();
-            this.indicator = null;
-            logger.debug("Vicinae indicator hidden");
-        }
-    }
-
-    private async initializeLauncherManager() {
-        if (!this.settings) return;
-
-        const autoClose = this.settings.get_boolean(
-            "launcher-auto-close-focus-loss",
-        );
-        const appClass =
-            this.settings.get_string("launcher-app-class") || "vicinae";
-
-        if (autoClose) {
-            if (!this.clipboardManager) {
-                throw new Error("Clipboard manager is not initialized");
-            }
-
-            const windowsService = this.dbusManager?.getWindowsService();
-
-            if (!windowsService) {
-                throw new Error("Windows service is not initialized");
-            }
-
-            this.launcherManager = new LauncherManager(
-                {
-                    appClass: appClass,
-                    autoCloseOnFocusLoss: autoClose,
-                    onWindowClosed: (windowId) => {
-                        windowsService.emitCloseWindow(windowId.toString());
-                    },
-                },
-                this.clipboardManager,
-            );
-
-            await this.launcherManager.enable();
-            logger.info("Launcher manager initialized and enabled");
-        }
-    }
-
-    private async updateLauncherManager() {
-        if (!this.settings) return;
-
-        const autoClose = this.settings.get_boolean(
-            "launcher-auto-close-focus-loss",
-        );
-
-        if (autoClose && !this.launcherManager) {
-            await this.initializeLauncherManager();
-        } else if (!autoClose && this.launcherManager) {
-            this.launcherManager.disable();
-            this.launcherManager = null;
-            logger.debug("Launcher manager disabled");
-        } else if (autoClose && this.launcherManager) {
-            const appClass =
-                this.settings.get_string("launcher-app-class") || "vicinae";
-
-            logger.debug(
-                "initializeShellIntegrationManager: Using app class",
-                appClass,
-            );
-
-            this.launcherManager.updateConfig({
-                appClass: appClass,
-                autoCloseOnFocusLoss: autoClose,
-            });
-        }
     }
 
     disable() {
@@ -189,25 +129,17 @@ export default class Vicinae extends Extension {
             this.blockedAppsConnection = 0;
         }
 
-        if (this.launcherManager) {
-            this.launcherManager.disable();
-            this.launcherManager = null;
-        }
+        this.launcherManager?.disable();
+        this.launcherManager = null;
 
-        if (this.indicator) {
-            this.indicator.destroy();
-            this.indicator = null;
-        }
+        this.indicator?.destroy();
+        this.indicator = null;
 
-        if (this.dbusManager) {
-            this.dbusManager.unexportServices();
-            this.dbusManager = null;
-        }
+        this.dbusManager?.unexportServices();
+        this.dbusManager = null;
 
-        if (this.clipboardManager) {
-            this.clipboardManager.destroy();
-            this.clipboardManager = null;
-        }
+        this.clipboardManager?.destroy();
+        this.clipboardManager = null;
 
         this.settings = null;
 

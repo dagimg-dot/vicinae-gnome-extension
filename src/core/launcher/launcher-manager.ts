@@ -1,7 +1,9 @@
+import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
+import type { WindowsService } from "../dbus/services/windows-service.js";
 import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
@@ -276,5 +278,67 @@ export class LauncherManager {
         logger.debug("LauncherManager: Refreshing tracked windows");
         this.trackedWindows.clear();
         // The WindowTracker will automatically pick up existing windows
+    }
+
+    static async create(
+        settings: Gio.Settings,
+        clipboardManager: VicinaeClipboardManager,
+        windowsService: WindowsService,
+    ): Promise<LauncherManager | null> {
+        const autoClose = settings.get_boolean(
+            "launcher-auto-close-focus-loss",
+        );
+        if (!autoClose) return null;
+
+        const appClass = settings.get_string("launcher-app-class") || "vicinae";
+
+        const manager = new LauncherManager(
+            {
+                appClass,
+                autoCloseOnFocusLoss: autoClose,
+                onWindowClosed: (windowId) => {
+                    windowsService.emitCloseWindow(windowId.toString());
+                },
+            },
+            clipboardManager,
+        );
+
+        await manager.enable();
+        logger.info(
+            "LauncherManager: Initialized and enabled via static factory",
+        );
+        return manager;
+    }
+
+    static async updateOrDestroy(
+        settings: Gio.Settings,
+        clipboardManager: VicinaeClipboardManager,
+        windowsService: WindowsService,
+        current: LauncherManager | null,
+    ): Promise<LauncherManager | null> {
+        const autoClose = settings.get_boolean(
+            "launcher-auto-close-focus-loss",
+        );
+
+        if (autoClose && !current) {
+            return LauncherManager.create(
+                settings,
+                clipboardManager,
+                windowsService,
+            );
+        }
+
+        if (!autoClose && current) {
+            current.disable();
+            return null;
+        }
+
+        if (autoClose && current) {
+            const appClass =
+                settings.get_string("launcher-app-class") || "vicinae";
+            current.updateConfig({ appClass, autoCloseOnFocusLoss: autoClose });
+        }
+
+        return current;
     }
 }

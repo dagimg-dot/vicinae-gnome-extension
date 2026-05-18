@@ -1,5 +1,7 @@
+import type Gio from "gi://Gio";
 import St from "gi://St";
 import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
+import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 import { Icons } from "../lib/icons.js";
@@ -14,6 +16,34 @@ export class VicinaeIndicator {
         this.indicator = new PanelMenu.Button(0, "Vicinae Gnome Extension");
         this.setupUI();
         this.setupMenu();
+    }
+
+    static createOrUpdate(
+        settings: Gio.Settings,
+        extension: Extension,
+        current: VicinaeIndicator | null,
+    ): VicinaeIndicator | null {
+        const shouldShow = settings.get_boolean("show-status-indicator");
+
+        if (shouldShow && !current) {
+            const indicator = new VicinaeIndicator(extension);
+            Main.panel.addToStatusArea(
+                "vicinae-gnome-extension",
+                indicator.getButton(),
+                0,
+                "right",
+            );
+            logger.debug("Vicinae indicator shown");
+            return indicator;
+        }
+
+        if (!shouldShow && current) {
+            current.destroy();
+            logger.debug("Vicinae indicator hidden");
+            return null;
+        }
+
+        return current;
     }
 
     private setupUI() {
