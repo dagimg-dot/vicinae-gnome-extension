@@ -8,7 +8,10 @@ import {
 import { logger } from "../../../utils/logger.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { createHandlers } from "../../clipboard/handlers/index.js";
-import type { ClipboardContentHandler } from "../../clipboard/handlers/types.js";
+import type {
+    ClipboardContentHandler,
+    SignalPayload,
+} from "../../clipboard/handlers/types.js";
 import type { ClipboardEvent } from "../../clipboard/types.js";
 
 export class ClipboardService {
@@ -37,6 +40,8 @@ export class ClipboardService {
         };
 
         this.clipboardListener = (event: ClipboardEvent) => {
+            let payload: SignalPayload | null;
+            
             try {
                 if (!event.content || event.content.length === 0) {
                     logger.debug("Skipping empty clipboard content");
@@ -50,10 +55,9 @@ export class ClipboardService {
                     .sort((a, b) => b.priority - a.priority)
                     .find((h) => h.matchesContent(event.content));
 
-                const payload = handler?.toSignalPayload(
-                    event,
-                    signalPayloadContext,
-                );
+                payload =
+                    handler?.toSignalPayload(event, signalPayloadContext) ??
+                    null;
 
                 if (!payload) {
                     logger.warn(
@@ -92,6 +96,14 @@ export class ClipboardService {
                             ? signalError.stack
                             : undefined,
                 });
+            } finally {
+                if (payload && !payload.mimeType.startsWith("text/")) {
+                    logger.debug(
+                        `ClipboardService: clearing binary store for marker "${event.content}"`,
+                    );
+                    this.clipboardManager.clearBinaryDataStore(event.content);
+                    logger.debug("ClipboardService: binary marker cleared");
+                }
             }
         };
 
