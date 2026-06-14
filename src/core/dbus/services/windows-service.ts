@@ -2,29 +2,10 @@ import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../../utils/logger.js";
+import { SignalRegistry } from "../../../utils/signal-registry.js";
 import { getFocusedWindow } from "../../../utils/window-utils.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
-
-/** Stores disconnect thunks and runs them all in disconnectAll(). */
-class SignalRegistry {
-    private disconnectFns: Array<() => void> = [];
-
-    add(fn: () => void): void {
-        this.disconnectFns.push(fn);
-    }
-
-    disconnectAll(): void {
-        for (const fn of this.disconnectFns) {
-            try {
-                fn();
-            } catch (error) {
-                logger.debug(`Error during signal cleanup: ${error}`);
-            }
-        }
-        this.disconnectFns = [];
-    }
-}
 
 export class WindowsService {
     private windowManager: VicinaeWindowManager;

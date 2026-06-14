@@ -1,6 +1,7 @@
 import Clutter from "gi://Clutter";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
+import { SignalRegistry } from "../../utils/signal-registry.js";
 import type { VicinaeWindowManager } from "../windows/window-manager.js";
 
 declare const global: {
@@ -10,7 +11,7 @@ declare const global: {
 };
 
 export class ClickHandler {
-    private buttonPressHandler?: number;
+    private signals = new SignalRegistry();
     private windowManager: VicinaeWindowManager;
 
     constructor(
@@ -22,7 +23,7 @@ export class ClickHandler {
 
     enable() {
         try {
-            this.buttonPressHandler = global.stage.connect(
+            const buttonPressHandler = global.stage.connect(
                 "captured-event",
                 (_stage: Clutter.Stage, event: Clutter.Event) => {
                     if (event.type() === Clutter.EventType.BUTTON_PRESS) {
@@ -31,6 +32,7 @@ export class ClickHandler {
                     return Clutter.EVENT_PROPAGATE;
                 },
             );
+            this.signals.add(() => global.stage.disconnect(buttonPressHandler));
             logger.info("ClickHandler: Click tracking enabled");
         } catch (error) {
             logger.error("ClickHandler: Error enabling click tracking", error);
@@ -39,10 +41,7 @@ export class ClickHandler {
     }
 
     disable() {
-        if (this.buttonPressHandler) {
-            global.stage.disconnect(this.buttonPressHandler);
-            this.buttonPressHandler = undefined;
-        }
+        this.signals.disconnectAll();
         logger.info("ClickHandler: Click tracking disabled");
     }
 

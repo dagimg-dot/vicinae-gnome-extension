@@ -10,6 +10,7 @@ import {
     initializeLogger,
     logger,
 } from "./utils/logger.js";
+import { SignalRegistry } from "./utils/signal-registry.js";
 
 // Create VirtualKeyboard in extension context
 const getVirtualKeyboard = (() => {
@@ -30,9 +31,7 @@ export default class Vicinae extends Extension {
     private clipboardManager: VicinaeClipboardManager | null = null;
     private launcherManager: LauncherManager | null = null;
     private settings: Gio.Settings | null = null;
-    private settingsConnection: number = 0;
-    private launcherSettingsConnection: number = 0;
-    private blockedAppsConnection: number = 0;
+    private signals = new SignalRegistry();
 
     async enable() {
         logger.info("Vicinae extension enabled");
@@ -69,7 +68,7 @@ export default class Vicinae extends Extension {
             this.dbusManager.getWindowsService(),
         );
 
-        this.settingsConnection = this.settings.connect(
+        const statusIndicatorId = this.settings.connect(
             "changed::show-status-indicator",
             () => {
                 if (!this.settings) return;
@@ -80,8 +79,9 @@ export default class Vicinae extends Extension {
                 );
             },
         );
+        this.signals.add(() => this.settings?.disconnect(statusIndicatorId));
 
-        this.launcherSettingsConnection = this.settings.connect(
+        const launcherAutoCloseId = this.settings.connect(
             "changed::launcher-auto-close-focus-loss",
             () => {
                 if (
@@ -100,8 +100,9 @@ export default class Vicinae extends Extension {
                 });
             },
         );
+        this.signals.add(() => this.settings?.disconnect(launcherAutoCloseId));
 
-        this.blockedAppsConnection = this.settings.connect(
+        const blockedAppsId = this.settings.connect(
             "changed::blocked-applications",
             () => {
                 if (this.clipboardManager && this.settings) {
@@ -112,6 +113,7 @@ export default class Vicinae extends Extension {
                 }
             },
         );
+        this.signals.add(() => this.settings?.disconnect(blockedAppsId));
 
         logger.info("Vicinae extension initialized successfully");
     }
@@ -119,21 +121,7 @@ export default class Vicinae extends Extension {
     disable() {
         logger.info("Vicinae extension disabled");
 
-        if (this.settingsConnection) {
-            this.settings?.disconnect(this.settingsConnection);
-            this.settingsConnection = 0;
-        }
-
-        if (this.launcherSettingsConnection) {
-            this.settings?.disconnect(this.launcherSettingsConnection);
-            this.launcherSettingsConnection = 0;
-        }
-
-        if (this.blockedAppsConnection) {
-            this.settings?.disconnect(this.blockedAppsConnection);
-            this.blockedAppsConnection = 0;
-        }
-
+        this.signals.disconnectAll();
         this.launcherManager?.disable();
         this.launcherManager = null;
 

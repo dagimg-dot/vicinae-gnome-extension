@@ -1,6 +1,7 @@
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
+import { SignalRegistry } from "../../utils/signal-registry.js";
 
 declare const global: {
     display: Meta.Display;
@@ -17,8 +18,7 @@ declare const global: {
 
 export class WindowTracker {
     private trackedWindows = new Set<number>();
-    private windowCreatedHandler?: number;
-    private windowDestroyHandler?: number;
+    private signals = new SignalRegistry();
     private isDestroying = false;
     private idleSourceIds: number[] = [];
 
@@ -30,7 +30,7 @@ export class WindowTracker {
 
     enable() {
         try {
-            this.windowCreatedHandler = global.display.connect(
+            const windowCreatedHandler = global.display.connect(
                 "window-created",
                 (_display: Meta.Display, window: Meta.Window) => {
                     const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -40,8 +40,11 @@ export class WindowTracker {
                     this.idleSourceIds.push(idleId);
                 },
             );
+            this.signals.add(() =>
+                global.display.disconnect(windowCreatedHandler),
+            );
 
-            this.windowDestroyHandler = global.window_manager.connect(
+            const windowDestroyHandler = global.window_manager.connect(
                 "destroy",
                 (_wm: unknown, actor: unknown) => {
                     if (this.isDestroying) return;
@@ -61,6 +64,9 @@ export class WindowTracker {
                     }
                 },
             );
+            this.signals.add(() =>
+                global.window_manager.disconnect(windowDestroyHandler),
+            );
 
             this.scanExistingWindows();
             logger.info("WindowTracker: Window tracking enabled");
@@ -75,16 +81,7 @@ export class WindowTracker {
 
     disable() {
         this.isDestroying = true;
-
-        if (this.windowCreatedHandler) {
-            global.display.disconnect(this.windowCreatedHandler);
-            this.windowCreatedHandler = undefined;
-        }
-
-        if (this.windowDestroyHandler) {
-            global.window_manager.disconnect(this.windowDestroyHandler);
-            this.windowDestroyHandler = undefined;
-        }
+        this.signals.disconnectAll();
 
         for (const id of this.idleSourceIds) {
             GLib.source_remove(id);

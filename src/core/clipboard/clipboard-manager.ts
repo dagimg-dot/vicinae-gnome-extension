@@ -4,6 +4,7 @@ import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
+import { SignalRegistry } from "../../utils/signal-registry.js";
 import { calculateClipboardMetadata } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
 import { createHandlers } from "./handlers/index.js";
@@ -20,7 +21,7 @@ export class VicinaeClipboardManager {
     private currentContent: string = "";
     private clipboard: St.Clipboard | null = null;
     private selection: Meta.Selection | null = null;
-    private _selectionOwnerChangedId: number | null = null;
+    private signals = new SignalRegistry();
     private _debouncing: number = 0;
     private settings: Gio.Settings | null = null;
     public pasteHackCallbackId: number | null = null;
@@ -125,11 +126,14 @@ export class VicinaeClipboardManager {
             this.selection = Shell.Global.get().get_display().get_selection();
 
             if (this.selection) {
-                this._selectionOwnerChangedId = this.selection.connect(
+                const selectionId = this.selection.connect(
                     "owner-changed",
                     (_: unknown, selectionType: Meta.SelectionType) => {
                         this.onSelectionOwnerChanged(_, selectionType);
                     },
+                );
+                this.signals.add(() =>
+                    this.selection?.disconnect(selectionId),
                 );
 
                 this.queryClipboard();
@@ -475,18 +479,7 @@ export class VicinaeClipboardManager {
             this.pasteHackCallbackId = null;
         }
 
-        if (this.selection && this._selectionOwnerChangedId) {
-            try {
-                this.selection.disconnect(this._selectionOwnerChangedId);
-                this._selectionOwnerChangedId = null;
-            } catch (edit_error) {
-                logger.error(
-                    "Error disconnecting selection listener",
-                    edit_error,
-                );
-            }
-        }
-
+        this.signals.disconnectAll();
         this.eventListeners = [];
         this.currentContent = "";
         logger.debug(
