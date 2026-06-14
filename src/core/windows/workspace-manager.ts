@@ -1,21 +1,21 @@
 import { logger } from "../../utils/logger.js";
 import { isMaximized } from "../../utils/window-utils.js";
 
+// biome-ignore lint/complexity/noStaticOnlyClass: groups workspace-related helpers
 export class WorkspaceManager {
-    getWorkspaceCount(): number {
+    static getWorkspaceCount(): number {
         try {
-            const workspaceManager = global.workspace_manager;
-            return workspaceManager.get_n_workspaces();
+            return global.workspace_manager.get_n_workspaces();
         } catch (error) {
             logger.error("Error getting workspace count", error);
             return 0;
         }
     }
 
-    getCurrentWorkspaceIndex(): number {
+    static getCurrentWorkspaceIndex(): number {
         try {
-            const workspaceManager = global.workspace_manager;
-            const currentWorkspace = workspaceManager.get_active_workspace();
+            const currentWorkspace =
+                global.workspace_manager.get_active_workspace();
             return currentWorkspace.index();
         } catch (error) {
             logger.error("Error getting current workspace index", error);
@@ -23,19 +23,18 @@ export class WorkspaceManager {
         }
     }
 
-    getWorkspaceByIndex(index: number) {
+    static getWorkspaceByIndex(index: number) {
         try {
-            const workspaceManager = global.workspace_manager;
-            return workspaceManager.get_workspace_by_index(index);
+            return global.workspace_manager.get_workspace_by_index(index);
         } catch (error) {
             logger.error("Error getting workspace by index", error);
             return null;
         }
     }
 
-    switchToWorkspace(index: number): void {
+    static switchToWorkspace(index: number): void {
         try {
-            const workspace = this.getWorkspaceByIndex(index);
+            const workspace = WorkspaceManager.getWorkspaceByIndex(index);
             if (workspace) {
                 workspace.activate(global.get_current_time());
             }
@@ -45,16 +44,11 @@ export class WorkspaceManager {
         }
     }
 
-    getWorkspaceInfo(index: number) {
+    static getWorkspaceInfo(index: number) {
         try {
-            const workspace = this.getWorkspaceByIndex(index);
+            const workspace = WorkspaceManager.getWorkspaceByIndex(index);
             if (workspace) {
                 const windows = workspace.list_windows();
-                const hasFullscreen = windows.some(
-                    (win) => isMaximized(win) === 3,
-                ); // Meta.MaximizeFlags.BOTH
-
-                // Get monitor from first window on this workspace, or default to 0
                 let monitor = 0;
                 if (windows.length > 0) {
                     monitor = windows[0].get_monitor();
@@ -67,8 +61,10 @@ export class WorkspaceManager {
                         workspace ===
                         global.workspace_manager.get_active_workspace(),
                     windowCount: windows.length,
-                    monitor: monitor,
-                    hasfullscreen: hasFullscreen,
+                    monitor,
+                    hasfullscreen: windows.some(
+                        (win) => isMaximized(win) === 3,
+                    ),
                 };
             }
             return null;
@@ -78,18 +74,15 @@ export class WorkspaceManager {
         }
     }
 
-    getAllWorkspaces() {
+    static getAllWorkspaces() {
         try {
             const workspaceManager = global.workspace_manager;
             const workspaces = [];
 
             for (let i = 0; i < workspaceManager.get_n_workspaces(); i++) {
-                const workspace = workspaceManager.get_workspace_by_index(i);
-                if (workspace) {
-                    const workspaceInfo = this.getWorkspaceInfo(i);
-                    if (workspaceInfo) {
-                        workspaces.push(workspaceInfo);
-                    }
+                const workspaceInfo = WorkspaceManager.getWorkspaceInfo(i);
+                if (workspaceInfo) {
+                    workspaces.push(workspaceInfo);
                 }
             }
 

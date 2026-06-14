@@ -296,21 +296,15 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     listWorkspaces(): WorkspaceInfo[] {
-        const workspaceManager = new WorkspaceManager();
-        return workspaceManager.getAllWorkspaces();
+        return WorkspaceManager.getAllWorkspaces();
     }
 
     getActiveWorkspace(): WorkspaceInfo {
-        const workspaceManager = new WorkspaceManager();
-        const currentIndex = workspaceManager.getCurrentWorkspaceIndex();
-        const workspace = workspaceManager.getWorkspaceInfo(currentIndex);
+        const currentIndex = WorkspaceManager.getCurrentWorkspaceIndex();
+        const workspace = WorkspaceManager.getWorkspaceInfo(currentIndex);
         if (!workspace) {
             throw new Error("No active workspace found");
         }
         return workspace;
-    }
-
-    destroy(): void {
-        logger.debug("Window manager destroyed");
     }
 }

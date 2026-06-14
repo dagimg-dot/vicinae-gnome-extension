@@ -180,7 +180,6 @@ export class LauncherManager {
             this.windowTracker.disable();
             this.focusTracker?.disable();
             this.clickHandler?.disable();
-            this.windowManager.destroy();
             // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
             this.windowManager = null!;
             this.trackedWindows.clear();
