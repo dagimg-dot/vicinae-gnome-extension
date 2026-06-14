@@ -10,7 +10,6 @@ import { WindowTracker } from "./window-tracker.js";
 
 declare const global: {
     display: Meta.Display;
-    get_window_actors: () => Meta.WindowActor[];
 };
 
 export interface LauncherConfig {
@@ -147,22 +146,6 @@ export class LauncherManager {
     private isValidWindowId(windowId: number): boolean {
         if (!windowId || windowId <= 0) return false;
         try {
-            // First check if window exists in the global window list
-            const windowActors = global.get_window_actors();
-            const windowExists = windowActors.some((actor) => {
-                try {
-                    return (
-                        actor.meta_window &&
-                        actor.meta_window.get_id() === windowId
-                    );
-                } catch {
-                    return false;
-                }
-            });
-
-            if (!windowExists) return false;
-
-            // Then try to get details to ensure it's accessible
             const details = this.windowManager.details(windowId);
             return details && details.id === windowId;
         } catch {
@@ -188,38 +171,6 @@ export class LauncherManager {
         }
     }
 
-    // Recovery method for error situations
-    recover() {
-        logger.warn("LauncherManager: Attempting recovery from errors");
-
-        try {
-            this.cleanup();
-            this.isEnabled = false;
-
-            // Cancel any existing enable timeout
-            if (this.enableTimeoutId) {
-                GLib.source_remove(this.enableTimeoutId);
-                this.enableTimeoutId = null;
-            }
-
-            // Wait a bit before re-enabling
-            this.enableTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                500,
-                () => {
-                    this.enable();
-                    this.enableTimeoutId = null;
-                    return false;
-                },
-            );
-
-            logger.info("LauncherManager: Recovery initiated");
-        } catch (error) {
-            logger.error("LauncherManager: Recovery failed", error);
-        }
-    }
-
-    // Public methods for dynamic configuration
     updateConfig(newConfig: Partial<LauncherConfig>) {
         const oldConfig = { ...this.config };
         this.config = { ...this.config, ...newConfig };
