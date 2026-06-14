@@ -19,7 +19,6 @@ export class VicinaeClipboardManager {
     private clipboard: St.Clipboard | null = null;
     private selection: Meta.Selection | null = null;
     private signals = new SignalRegistry();
-    private _debouncing: number = 0;
     private settings: Gio.Settings | null = null;
 
     constructor() {
@@ -227,11 +226,6 @@ export class VicinaeClipboardManager {
         text: string,
         source: "user" | "system" | "image",
     ) {
-        if (this._debouncing > 0) {
-            this._debouncing--;
-            return;
-        }
-
         if (!text || text === this.currentContent) {
             if (this.binaryStore.has(text)) {
                 this.binaryStore.delete(text);

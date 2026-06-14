@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger.js";
-import { isMaximized } from "../../utils/window-utils.js";
+import { getCurrentTime, isMaximized } from "../../utils/window-utils.js";
 
 // biome-ignore lint/complexity/noStaticOnlyClass: groups workspace-related helpers
 export class WorkspaceManager {
@@ -36,7 +36,7 @@ export class WorkspaceManager {
         try {
             const workspace = WorkspaceManager.getWorkspaceByIndex(index);
             if (workspace) {
-                workspace.activate(global.get_current_time());
+                workspace.activate(getCurrentTime());
             }
         } catch (error) {
             logger.error("Error switching to workspace", error);

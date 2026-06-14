@@ -19,7 +19,7 @@ export class WindowsService {
     private focusIdleSourceId: number = 0;
 
     private windowSizeTracker: WindowSizeTracker;
-    private signalRegistry: SignalRegistry = new SignalRegistry();
+    private signals = new SignalRegistry();
 
     // Track previous focused window for paste-to-active-app functionality
     private previousFocusedWindow: { id: number; wmClass: string } | null =
@@ -64,7 +64,7 @@ export class WindowsService {
                 }
             },
         );
-        this.signalRegistry.add(() => {
+        this.signals.add(() => {
             if (this.windowDestroyHandlerId) {
                 global.window_manager.disconnect(this.windowDestroyHandlerId);
             }
@@ -90,7 +90,7 @@ export class WindowsService {
                 }
             },
         );
-        this.signalRegistry.add(() => {
+        this.signals.add(() => {
             if (this.windowOpenedSignalId) {
                 global.display.disconnect(this.windowOpenedSignalId);
             }
@@ -139,13 +139,13 @@ export class WindowsService {
             },
         );
 
-        this.signalRegistry.add(() => {
+        this.signals.add(() => {
             if (this.windowFocusSignalId) {
                 global.display.disconnect(this.windowFocusSignalId);
             }
         });
 
-        this.signalRegistry.add(() => {
+        this.signals.add(() => {
             if (this.focusIdleSourceId) {
                 GLib.source_remove(this.focusIdleSourceId);
                 this.focusIdleSourceId = 0;
@@ -171,7 +171,7 @@ export class WindowsService {
             },
         );
 
-        this.signalRegistry.add(() => {
+        this.signals.add(() => {
             if (this.workspaceChangedSignalId && global.workspace_manager) {
                 global.workspace_manager.disconnect(
                     this.workspaceChangedSignalId,
@@ -270,7 +270,7 @@ export class WindowsService {
 
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
-        this.signalRegistry.disconnectAll();
+        this.signals.disconnectAll();
         this.windowSizeTracker.disconnectAll();
 
         this.windowDestroyHandlerId = 0;
