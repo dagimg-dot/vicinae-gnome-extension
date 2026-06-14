@@ -6,13 +6,13 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@biomejs/biome": "^2.2.2",
+    "@biomejs/biome": "2.2.2",
     "@girs/gjs": "^4.0.0-beta.25",
     "@girs/gnome-shell": "^50.0.0",
     "dotenv": "^17.3.1",
     "esbuild": "^0.25.9",
     "esbuild-plugin-tsc": "^0.5.0",
-    "esbuild-preserve-whitespace": "^1.1.1",
+    "esbuild-preserve-whitespace": "^1.2.0",
     "typescript": "^5.9.2"
   },
   "scripts": {
