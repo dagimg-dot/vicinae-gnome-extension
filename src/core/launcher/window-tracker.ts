@@ -13,7 +13,6 @@ declare const global: {
         disconnect: (id: number) => void;
     };
     get_window_actors: () => Meta.WindowActor[];
-    get_current_time: () => number;
 };
 
 export class WindowTracker {
