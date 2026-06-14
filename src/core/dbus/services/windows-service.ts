@@ -6,6 +6,7 @@ import { SignalRegistry } from "../../../utils/signal-registry.js";
 import { getFocusedWindow } from "../../../utils/window-utils.js";
 import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
+import { WindowSizeTracker } from "../../windows/window-size-tracker.js";
 
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
@@ -18,7 +19,7 @@ export class WindowsService {
     private windowDestroyHandlerId: number = 0;
     private focusIdleSourceId: number = 0;
 
-    private windowSizeSignalIds: Map<number, number> = new Map();
+    private windowSizeTracker: WindowSizeTracker;
     private signalRegistry: SignalRegistry = new SignalRegistry();
 
     // Track previous focused window for paste-to-active-app functionality
@@ -30,6 +31,9 @@ export class WindowsService {
             clipboardManager,
             appClass,
         );
+        this.windowSizeTracker = new WindowSizeTracker((windowId) => {
+            this.handleWindowSizeChanged(windowId);
+        });
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -58,7 +62,7 @@ export class WindowsService {
                     );
 
                     this.emitCloseWindow(windowId.toString());
-                    this.windowSizeSignalIds.delete(windowId);
+                    this.windowSizeTracker.removeWindow(windowId);
                 } catch (error) {
                     logger.debug(`Error handling window destroy: ${error}`);
                 }
@@ -82,7 +86,7 @@ export class WindowsService {
                         windowInfo.title,
                     );
 
-                    this.connectToWindowSizeChanges(window);
+                    this.windowSizeTracker.connectToWindow(window);
                 } catch (error) {
                     logger.debug(
                         `Error handling window opened event: ${error}`,
@@ -96,28 +100,7 @@ export class WindowsService {
             }
         });
 
-        this.connectSizeSignalsToExistingWindows();
-
-        this.signalRegistry.add(() => {
-            for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
-                try {
-                    const windowActors = global.get_window_actors();
-
-                    const windowActor = windowActors.find(
-                        (actor) => actor.meta_window?.get_id() === windowId,
-                    );
-
-                    if (windowActor?.meta_window && sizeSignalId) {
-                        windowActor.meta_window.disconnect(sizeSignalId);
-                    }
-                } catch (error) {
-                    logger.debug(
-                        `Error disconnecting size signal for window ${windowId}: ${error}`,
-                    );
-                }
-            }
-            this.windowSizeSignalIds.clear();
-        });
+        this.windowSizeTracker.connectToExistingWindows();
 
         this.windowFocusSignalId = global.display.connect(
             "notify::focus-window",
@@ -205,36 +188,24 @@ export class WindowsService {
         );
     }
 
-    private connectToWindowSizeChanges(window: Meta.Window): void {
-        const windowId = window.get_id();
-
+    private handleWindowSizeChanged(windowId: number): void {
         try {
-            const signalId = window.connect("size-changed", () => {
-                try {
-                    const currentWindow = this.findWindowById(windowId);
-                    if (!currentWindow) return;
-                    const windowInfo = this.getWindowInfo(currentWindow);
-                    logger.debug(
-                        `Window ${windowId} size changed - emitting movewindow`,
-                    );
-                    this.emitMoveWindow(
-                        windowInfo.id.toString(),
-                        windowInfo.x,
-                        windowInfo.y,
-                        windowInfo.width,
-                        windowInfo.height,
-                    );
-                } catch (error) {
-                    logger.debug(
-                        `Error handling size change for window ${windowId}: ${error}`,
-                    );
-                }
-            });
-
-            this.windowSizeSignalIds.set(windowId, signalId);
+            const currentWindow = this.findWindowById(windowId);
+            if (!currentWindow) return;
+            const windowInfo = this.getWindowInfo(currentWindow);
+            logger.debug(
+                `Window ${windowId} size changed - emitting movewindow`,
+            );
+            this.emitMoveWindow(
+                windowInfo.id.toString(),
+                windowInfo.x,
+                windowInfo.y,
+                windowInfo.width,
+                windowInfo.height,
+            );
         } catch (error) {
             logger.debug(
-                `Failed to connect size-changed signal for window ${windowId}: ${error}`,
+                `Error handling size change for window ${windowId}: ${error}`,
             );
         }
     }
@@ -252,20 +223,6 @@ export class WindowsService {
             // ignore
         }
         return null;
-    }
-
-    private connectSizeSignalsToExistingWindows(): void {
-        try {
-            const windowActors = global.get_window_actors();
-
-            for (const actor of windowActors) {
-                if (actor.meta_window) {
-                    this.connectToWindowSizeChanges(actor.meta_window);
-                }
-            }
-        } catch (error) {
-            logger.debug(`Error connecting to existing windows: ${error}`);
-        }
     }
 
     private getWindowInfo(window: Meta.Window): {
@@ -318,13 +275,13 @@ export class WindowsService {
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
         this.signalRegistry.disconnectAll();
+        this.windowSizeTracker.disconnectAll();
 
         this.windowDestroyHandlerId = 0;
         this.windowOpenedSignalId = 0;
         this.windowFocusSignalId = 0;
         this.workspaceChangedSignalId = 0;
         this.focusIdleSourceId = 0;
-        this.windowSizeSignalIds.clear();
 
         logger.debug("WindowsService: Window event listeners cleaned up");
     }
