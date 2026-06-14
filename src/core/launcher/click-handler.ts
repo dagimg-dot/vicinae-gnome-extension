@@ -12,14 +12,11 @@ declare const global: {
 
 export class ClickHandler {
     private signals = new SignalRegistry();
-    private windowManager: VicinaeWindowManager;
 
     constructor(
-        windowManager: VicinaeWindowManager,
+        private windowManager: VicinaeWindowManager,
         private onClickOutside: () => void,
-    ) {
-        this.windowManager = windowManager;
-    }
+    ) {}
 
     enable() {
         try {
@@ -46,29 +43,33 @@ export class ClickHandler {
     }
 
     private handleClick() {
-        const [x, y] = global.get_pointer();
-        const windows = global.get_window_actors();
-        const window = windows.find((actor: Meta.WindowActor) => {
-            const win = actor.meta_window;
-            if (!win) return false;
+        try {
+            const [x, y] = global.get_pointer();
+            const windows = global.get_window_actors();
+            const window = windows.find((actor: Meta.WindowActor) => {
+                const win = actor.meta_window;
+                if (!win) return false;
 
-            const rect = win.get_frame_rect();
-            return (
-                x >= rect.x &&
-                x <= rect.x + rect.width &&
-                y >= rect.y &&
-                y <= rect.y + rect.height
+                const rect = win.get_frame_rect();
+                return (
+                    x >= rect.x &&
+                    x <= rect.x + rect.width &&
+                    y >= rect.y &&
+                    y <= rect.y + rect.height
+                );
+            });
+
+            const clickedWindow = window?.meta_window;
+
+            const isTargetWindow = this.windowManager.isTargetWindow(
+                clickedWindow?.get_wm_class() || "",
             );
-        });
 
-        const clickedWindow = window?.meta_window;
-
-        const isTargetWindow = this.windowManager.isTargetWindow(
-            clickedWindow?.get_wm_class() || "",
-        );
-
-        if (!clickedWindow || !isTargetWindow) {
-            this.onClickOutside();
+            if (!clickedWindow || !isTargetWindow) {
+                this.onClickOutside();
+            }
+        } catch (error) {
+            logger.error("ClickHandler: Error handling click", error);
         }
     }
 }
