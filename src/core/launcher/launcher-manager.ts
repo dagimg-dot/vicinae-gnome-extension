@@ -36,8 +36,8 @@ export class LauncherManager {
         this.config = config;
         this.windowTracker = new WindowTracker(
             config.appClass,
-            this.handleWindowTracked.bind(this),
-            this.handleWindowUntracked.bind(this),
+            this.handleWindowTracked,
+            this.handleWindowUntracked,
         );
     }
 
@@ -64,17 +64,17 @@ export class LauncherManager {
         }
     }
 
-    private handleWindowTracked(windowId: number) {
+    private handleWindowTracked = (windowId: number) => {
         this.trackedWindows.add(windowId);
         logger.debug(`LauncherManager: Window ${windowId} is now tracked`);
-    }
+    };
 
-    private handleWindowUntracked(windowId: number) {
+    private handleWindowUntracked = (windowId: number) => {
         this.trackedWindows.delete(windowId);
         logger.debug(
             `LauncherManager: Window ${windowId} is no longer tracked`,
         );
-    }
+    };
 
     disable() {
         logger.info("LauncherManager: Disabling");
