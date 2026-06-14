@@ -109,7 +109,7 @@ export const AboutPage = GObject.registerClass(
             const children = this as unknown as AboutPageChildren;
 
             // biome-ignore lint/style/noNonNullAssertion: path is always provided by GNOME Shell
-            new Icons(metadata.path!);
+            Icons.load(metadata.path!);
 
             const vicinaeIcon = Icons.get("vicinae") as Gio.Icon;
 
@@ -153,7 +153,7 @@ export const AboutPage = GObject.registerClass(
 
                 // Add GitHub icon if username is available
                 if (credit.github) {
-                    new Icons(path);
+                    Icons.load(path);
                     const githubIcon = Icons.get("github") as Gio.Icon;
 
                     creditRow.add_suffix(

@@ -47,7 +47,7 @@ export class VicinaeIndicator {
     }
 
     private setupUI() {
-        new Icons(this.extension.path);
+        Icons.load(this.extension.path);
 
         const vicinaeIcon = Icons.get("vicinae");
 
@@ -82,5 +82,6 @@ export class VicinaeIndicator {
             this.indicator.destroy();
             this.indicator = null;
         }
+        Icons.clear();
     }
 }

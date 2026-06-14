@@ -5,7 +5,11 @@ import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
-import { initializeLogger, logger } from "./utils/logger.js";
+import {
+    deinitializeLogger,
+    initializeLogger,
+    logger,
+} from "./utils/logger.js";
 
 // Create VirtualKeyboard in extension context
 const getVirtualKeyboard = (() => {
@@ -39,6 +43,7 @@ export default class Vicinae extends Extension {
         this.clipboardManager = new VicinaeClipboardManager(
             getVirtualKeyboard(),
         );
+        this.clipboardManager.enable();
         this.clipboardManager.setSettings(this.settings);
 
         const appClass =
@@ -141,6 +146,9 @@ export default class Vicinae extends Extension {
         this.clipboardManager?.destroy();
         this.clipboardManager = null;
 
+        if (this.settings) {
+            deinitializeLogger(this.settings);
+        }
         this.settings = null;
 
         logger.info("Vicinae extension cleaned up successfully");

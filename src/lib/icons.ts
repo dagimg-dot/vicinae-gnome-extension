@@ -7,6 +7,10 @@ export class Icons {
     static #icons = new Map<ICON, Gio.Icon>();
 
     constructor(extPath: string) {
+        Icons.load(extPath);
+    }
+
+    static load(extPath: string) {
         for (const name of ICONS) {
             const iconPath = `${extPath}/assets/icons/${name}.svg`;
             const icon = Gio.icon_new_for_string(iconPath);
@@ -16,5 +20,9 @@ export class Icons {
 
     static get(name: ICON) {
         return Icons.#icons.get(name);
+    }
+
+    static clear() {
+        Icons.#icons.clear();
     }
 }

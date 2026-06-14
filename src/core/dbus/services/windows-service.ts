@@ -337,6 +337,14 @@ export class WindowsService {
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
         this.signalRegistry.disconnectAll();
+
+        this.windowDestroyHandlerId = 0;
+        this.windowOpenedSignalId = 0;
+        this.windowFocusSignalId = 0;
+        this.workspaceChangedSignalId = 0;
+        this.focusIdleSourceId = 0;
+        this.windowSizeSignalIds.clear();
+
         logger.debug("WindowsService: Window event listeners cleaned up");
     }
 

@@ -28,6 +28,9 @@ export class VicinaeClipboardManager {
     constructor(virtualKeyboard: Clutter.VirtualInputDevice) {
         this.virtualKeyboard = virtualKeyboard;
         this.contentHandlers = createHandlers();
+    }
+
+    enable() {
         this.setupClipboardMonitoring();
     }
 
@@ -124,7 +127,9 @@ export class VicinaeClipboardManager {
             if (this.selection) {
                 this._selectionOwnerChangedId = this.selection.connect(
                     "owner-changed",
-                    this.onSelectionOwnerChanged.bind(this),
+                    (_: unknown, selectionType: Meta.SelectionType) => {
+                        this.onSelectionOwnerChanged(_, selectionType);
+                    },
                 );
 
                 this.queryClipboard();

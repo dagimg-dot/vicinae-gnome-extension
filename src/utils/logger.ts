@@ -26,6 +26,7 @@ const stringToLogLevel = (level: string): LogLevel => {
 
 // Global settings reference for logger
 let currentLogLevel: LogLevel = LogLevel.INFO;
+let loggingLevelSignalId: number = 0;
 
 // Initialize logger with settings
 export const initializeLogger = (settings: Gio.Settings) => {
@@ -34,13 +35,20 @@ export const initializeLogger = (settings: Gio.Settings) => {
     currentLogLevel = stringToLogLevel(levelString);
 
     // Listen for log level changes
-    settings.connect("changed::logging-level", () => {
+    loggingLevelSignalId = settings.connect("changed::logging-level", () => {
         const newLevelString = settings.get_string("logging-level");
         currentLogLevel = stringToLogLevel(newLevelString);
         log(LogLevel.INFO, `Log level changed to: ${newLevelString}`);
     });
 
     log(LogLevel.INFO, `Logger initialized with level: ${levelString}`);
+};
+
+export const deinitializeLogger = (settings: Gio.Settings) => {
+    if (loggingLevelSignalId) {
+        settings.disconnect(loggingLevelSignalId);
+        loggingLevelSignalId = 0;
+    }
 };
 
 // Single write function — all console output routes through here

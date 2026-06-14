@@ -76,7 +76,11 @@ export class DBusManager {
         try {
             // Clean up services
             this.clipboardServiceInstance.destroy();
+            // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
+            this.clipboardServiceInstance = null!;
             this.windowsServiceInstance.destroy();
+            // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
+            this.windowsServiceInstance = null!;
 
             unexportDBusService(this.clipboardService);
             unexportDBusService(this.windowsService);
