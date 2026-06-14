@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync, rmSync } from "node:fs";
+import { readdirSync, readFileSync, rmdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
@@ -26,6 +26,14 @@ function removeTypeOnlyFiles(dir) {
                 rmSync(fullPath);
             }
         }
+    }
+    try {
+        const remaining = readdirSync(dir);
+        if (remaining.length === 0) {
+            rmdirSync(dir);
+        }
+    } catch {
+        /* directory already removed or protected */
     }
 }
 
