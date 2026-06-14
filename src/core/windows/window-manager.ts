@@ -44,94 +44,52 @@ export class VicinaeWindowManager implements WindowManager {
         );
     }
 
-    list(): WindowInfo[] {
-        const windowActors = global.get_window_actors();
-        const workspaceManager = global.workspace_manager;
-
-        const windows = windowActors
-            .map((w) => w.meta_window)
-            .filter((mw): mw is Meta.Window => mw !== null)
-            .map((metaWindow) => {
-                const windowWorkspace = metaWindow.get_workspace();
-                const frame = metaWindow.get_frame_rect();
-
-                // Explicitly construct the object to be type-safe
-                return {
-                    id: metaWindow.get_id(),
-                    title: metaWindow.get_title(),
-                    wm_class: metaWindow.get_wm_class() || "",
-                    wm_class_instance: metaWindow.get_wm_class_instance() || "",
-                    pid: metaWindow.get_pid(),
-                    maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
-                    display: metaWindow.get_display(),
-                    frame_type: metaWindow.get_frame_type(),
-                    window_type: metaWindow.get_window_type(),
-                    layer: metaWindow.get_layer(),
-                    monitor: metaWindow.get_monitor(),
-                    role: metaWindow.get_role(),
-                    width: frame.width,
-                    height: frame.height,
-                    x: frame.x,
-                    y: frame.y,
-                    in_current_workspace: metaWindow.located_on_workspace?.(
-                        workspaceManager.get_active_workspace?.(),
-                    ),
-                    canclose: metaWindow.can_close(),
-                    canmaximize: metaWindow.can_maximize(),
-                    canminimize: metaWindow.can_minimize(),
-                    canshade: false, // can_shade() is not in the type definitions
-                    moveable: metaWindow.allows_move(),
-                    resizeable: metaWindow.allows_resize(),
-                    has_focus: metaWindow.has_focus(),
-                    workspace: windowWorkspace ? windowWorkspace.index() : -1,
-                };
-            });
-
-        return windows as unknown as WindowInfo[];
-    }
-
-    details(winid: number): WindowInfo {
-        const metaWindow = getWindowById(winid);
-
-        if (!metaWindow) {
-            throw new Error("Window not found");
-        }
-        const workspaceManager = global.workspace_manager;
-        const windowWorkspace = metaWindow.get_workspace();
-        const frame = metaWindow.get_frame_rect();
-
-        // Explicitly construct the object to be type-safe
-        const win = {
-            id: metaWindow.get_id(),
-            title: metaWindow.get_title(),
-            wm_class: metaWindow.get_wm_class() || "",
-            wm_class_instance: metaWindow.get_wm_class_instance() || "",
-            pid: metaWindow.get_pid(),
-            maximized: isMaximized(metaWindow) !== 0, // 0 means not maximized
-            display: metaWindow.get_display(),
-            frame_type: metaWindow.get_frame_type(),
-            window_type: metaWindow.get_window_type(),
-            layer: metaWindow.get_layer(),
-            monitor: metaWindow.get_monitor(),
-            role: metaWindow.get_role(),
+    private static toWindowInfo(mw: Meta.Window): WindowInfo {
+        const workspace = mw.get_workspace();
+        const frame = mw.get_frame_rect();
+        return {
+            id: mw.get_id(),
+            title: mw.get_title(),
+            wm_class: mw.get_wm_class() || "",
+            wm_class_instance: mw.get_wm_class_instance() || "",
+            pid: mw.get_pid(),
+            maximized: isMaximized(mw) !== 0,
+            display: mw.get_display(),
+            frame_type: mw.get_frame_type(),
+            window_type: mw.get_window_type(),
+            layer: mw.get_layer(),
+            monitor: mw.get_monitor(),
+            role: mw.get_role(),
             width: frame.width,
             height: frame.height,
             x: frame.x,
             y: frame.y,
-            in_current_workspace: metaWindow.located_on_workspace?.(
-                workspaceManager.get_active_workspace?.(),
+            in_current_workspace: mw.located_on_workspace?.(
+                global.workspace_manager.get_active_workspace?.(),
             ),
-            canclose: metaWindow.can_close(),
-            canmaximize: metaWindow.can_maximize(),
-            canminimize: metaWindow.can_minimize(),
-            canshade: false, // can_shade() is not in the type definitions
-            moveable: metaWindow.allows_move(),
-            resizeable: metaWindow.allows_resize(),
-            has_focus: metaWindow.has_focus(),
-            workspace: windowWorkspace ? windowWorkspace.index() : -1,
-        };
+            canclose: mw.can_close(),
+            canmaximize: mw.can_maximize(),
+            canminimize: mw.can_minimize(),
+            canshade: false,
+            moveable: mw.allows_move(),
+            resizeable: mw.allows_resize(),
+            has_focus: mw.has_focus(),
+            workspace: workspace ? workspace.index() : -1,
+        } as unknown as WindowInfo;
+    }
 
-        return win as unknown as WindowInfo;
+    list(): WindowInfo[] {
+        return global
+            .get_window_actors()
+            .map((w) => w.meta_window)
+            .filter((mw): mw is Meta.Window => mw !== null)
+            .map(VicinaeWindowManager.toWindowInfo);
+    }
+
+    details(winid: number): WindowInfo {
+        const mw = getWindowById(winid);
+        if (!mw) throw new Error("Window not found");
+        return VicinaeWindowManager.toWindowInfo(mw);
     }
 
     getTitle(winid: number): string {
