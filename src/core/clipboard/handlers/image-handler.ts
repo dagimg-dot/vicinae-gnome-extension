@@ -2,8 +2,6 @@ import St from "gi://St";
 import {
     bufferLikeToUint8Array,
     decodeClipboardBytes,
-    getImageMimeType,
-    isValidImageBuffer,
 } from "../../../utils/clipboard-utils.js";
 import type { BufferLike } from "../types.js";
 import type {
@@ -12,8 +10,6 @@ import type {
     SignalPayload,
     SignalPayloadContext,
 } from "./types.js";
-
-const IMAGE_MIME_PREFIX = "image/";
 
 export class ImageHandler implements ClipboardContentHandler {
     readonly mimeTypes = [
@@ -24,8 +20,16 @@ export class ImageHandler implements ClipboardContentHandler {
     ] as const;
     readonly priority = 2;
 
+    private requestedMimeType: string = "image/png";
+
     matchesMimeTypes(types: string[]): boolean {
-        return types.some((t) => t.startsWith(IMAGE_MIME_PREFIX));
+        for (const supported of this.mimeTypes) {
+            if (types.includes(supported)) {
+                this.requestedMimeType = supported;
+                return true;
+            }
+        }
+        return false;
     }
 
     matchesContent(content: string): boolean {
@@ -41,26 +45,16 @@ export class ImageHandler implements ClipboardContentHandler {
 
         clipboard.get_content(
             St.ClipboardType.CLIPBOARD,
-            "image/png",
+            this.requestedMimeType,
             (_: unknown, rawContent: unknown) => {
                 if (!rawContent) return;
 
                 const data = decodeClipboardBytes(rawContent);
-                if (!data || data.length === 0) {
-                    onResult("[IMAGE_DATA_AVAILABLE]");
-                    return;
-                }
+                if (!data || data.length === 0) return;
 
-                const isValid = isValidImageBuffer(data);
-                const mimeType = getImageMimeType(data);
-
-                if (isValid) {
-                    const marker = `[BINARY_IMAGE:${mimeType}:${data.length}]`;
-                    context.storeBinaryData(marker, data, mimeType);
-                    onResult(marker);
-                } else {
-                    onResult("[BINARY_DATA_AVAILABLE]");
-                }
+                const marker = `[BINARY_IMAGE:${this.requestedMimeType}:${data.length}]`;
+                context.storeBinaryData(marker, data, this.requestedMimeType);
+                onResult(marker);
             },
         );
     }
