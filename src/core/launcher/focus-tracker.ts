@@ -1,3 +1,4 @@
+import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { SignalRegistry } from "../../utils/signal-registry.js";
@@ -8,6 +9,7 @@ declare const global: {
 
 export class FocusTracker {
     private signals = new SignalRegistry();
+    private focusIdleId: number = 0;
 
     constructor(private onFocusChange: () => void) {}
 
@@ -15,8 +17,26 @@ export class FocusTracker {
         try {
             const focusHandler = global.display.connect(
                 "notify::focus-window",
-                (_display: Meta.Display, _window: Meta.Window) => {
-                    this.onFocusChange();
+                () => {
+                    if (this.focusIdleId) {
+                        GLib.source_remove(this.focusIdleId);
+                    }
+
+                    this.focusIdleId = GLib.idle_add(
+                        GLib.PRIORITY_DEFAULT_IDLE,
+                        () => {
+                            this.focusIdleId = 0;
+                            try {
+                                this.onFocusChange();
+                            } catch (error) {
+                                logger.error(
+                                    "FocusTracker: Error in focus change handler",
+                                    error,
+                                );
+                            }
+                            return GLib.SOURCE_REMOVE;
+                        },
+                    );
                 },
             );
             this.signals.add(() => global.display.disconnect(focusHandler));
@@ -28,6 +48,10 @@ export class FocusTracker {
     }
 
     disable() {
+        if (this.focusIdleId) {
+            GLib.source_remove(this.focusIdleId);
+            this.focusIdleId = 0;
+        }
         this.signals.disconnectAll();
         logger.info("FocusTracker: Focus tracking disabled");
     }
