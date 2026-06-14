@@ -32,11 +32,7 @@ export default class Vicinae extends Extension {
         const appClass =
             this.settings.get_string("launcher-app-class") || "vicinae";
 
-        this.dbusManager = new DBusManager(
-            appClass,
-            this,
-            this.clipboardManager,
-        );
+        this.dbusManager = new DBusManager(appClass, this.clipboardManager);
         this.dbusManager.exportServices();
 
         this.indicator = VicinaeIndicator.createOrUpdate(

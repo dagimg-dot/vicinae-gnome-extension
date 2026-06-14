@@ -1,6 +1,5 @@
 import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
-import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import {
     CLIPBOARD_CONFIG,
     calculateClipboardMetadata,
@@ -21,10 +20,7 @@ export class ClipboardService {
     private clipboardListener: ((event: ClipboardEvent) => void) | null = null;
     private isListening = false;
 
-    constructor(
-        clipboardManager: VicinaeClipboardManager,
-        _extension?: Extension,
-    ) {
+    constructor(clipboardManager: VicinaeClipboardManager) {
         this.clipboardManager = clipboardManager;
         this.contentHandlers = createHandlers();
         logger.info("ClipboardService initialized with binary-only protocol");
@@ -213,23 +209,17 @@ export class ClipboardService {
         }
     }
 
-    // Method to get available MIME types
     GetClipboardMimeTypes(): string[] {
-        try {
-            return [
-                "text/plain",
-                "text/uri-list",
-                "text/html",
-                "image/png",
-                "image/jpeg",
-                "image/gif",
-                "image/webp",
-                "application/x-vicinae-concealed",
-            ];
-        } catch (error) {
-            logger.error("D-Bus: Error getting clipboard MIME types", error);
-            return [];
-        }
+        return [
+            "text/plain",
+            "text/uri-list",
+            "text/html",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+            "application/x-vicinae-concealed",
+        ];
     }
 
     // Method to stop listening to clipboard changes

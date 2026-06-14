@@ -1,5 +1,4 @@
 import type Gio from "gi://Gio";
-import type { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import {
     createDBusService,
     exportDBusService,
@@ -18,21 +17,14 @@ export class DBusManager {
     private clipboardServiceInstance!: ClipboardService;
     private windowsServiceInstance!: WindowsService;
 
-    constructor(
-        appClass: string,
-        extension?: Extension,
-        clipboardManager?: VicinaeClipboardManager,
-    ) {
+    constructor(appClass: string, clipboardManager?: VicinaeClipboardManager) {
         if (!clipboardManager) {
             throw new Error(
                 "ClipboardManager instance is required for DBusManager",
             );
         }
 
-        this.clipboardServiceInstance = new ClipboardService(
-            clipboardManager,
-            extension,
-        );
+        this.clipboardServiceInstance = new ClipboardService(clipboardManager);
         this.windowsServiceInstance = new WindowsService(appClass);
 
         this.clipboardService = createDBusService(
