@@ -4,9 +4,9 @@ import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
-import { SignalRegistry } from "../../utils/signal-registry.js";
 import { calculateClipboardMetadata } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
+import { SignalRegistry } from "../../utils/signal-registry.js";
 import { createHandlers } from "./handlers/index.js";
 import type { ClipboardContentHandler } from "./handlers/types.js";
 import type { BufferLike, ClipboardEvent } from "./types.js";
@@ -132,9 +132,7 @@ export class VicinaeClipboardManager {
                         this.onSelectionOwnerChanged(_, selectionType);
                     },
                 );
-                this.signals.add(() =>
-                    this.selection?.disconnect(selectionId),
-                );
+                this.signals.add(() => this.selection?.disconnect(selectionId));
 
                 this.queryClipboard();
 
