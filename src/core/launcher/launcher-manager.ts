@@ -2,7 +2,6 @@ import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
-import type { VicinaeClipboardManager } from "../clipboard/clipboard-manager.js";
 import type { WindowsService } from "../dbus/services/windows-service.js";
 import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
@@ -33,14 +32,8 @@ export class LauncherManager {
     private trackedWindows = new Set<number>();
     private enableTimeoutId: number | null = null;
 
-    constructor(
-        config: LauncherConfig,
-        clipboardManager: VicinaeClipboardManager,
-    ) {
-        this.windowManager = new VicinaeWindowManager(
-            clipboardManager,
-            config.appClass,
-        );
+    constructor(config: LauncherConfig) {
+        this.windowManager = new VicinaeWindowManager(config.appClass);
         this.config = config;
         this.windowTracker = new WindowTracker(
             config.appClass,
@@ -284,7 +277,6 @@ export class LauncherManager {
 
     static async create(
         settings: Gio.Settings,
-        clipboardManager: VicinaeClipboardManager,
         windowsService: WindowsService,
     ): Promise<LauncherManager | null> {
         const autoClose = settings.get_boolean(
@@ -294,16 +286,13 @@ export class LauncherManager {
 
         const appClass = settings.get_string("launcher-app-class") || "vicinae";
 
-        const manager = new LauncherManager(
-            {
-                appClass,
-                autoCloseOnFocusLoss: autoClose,
-                onWindowClosed: (windowId) => {
-                    windowsService.emitCloseWindow(windowId.toString());
-                },
+        const manager = new LauncherManager({
+            appClass,
+            autoCloseOnFocusLoss: autoClose,
+            onWindowClosed: (windowId) => {
+                windowsService.emitCloseWindow(windowId.toString());
             },
-            clipboardManager,
-        );
+        });
 
         await manager.enable();
         logger.info(
@@ -314,7 +303,6 @@ export class LauncherManager {
 
     static async updateOrDestroy(
         settings: Gio.Settings,
-        clipboardManager: VicinaeClipboardManager,
         windowsService: WindowsService,
         current: LauncherManager | null,
     ): Promise<LauncherManager | null> {
@@ -323,11 +311,7 @@ export class LauncherManager {
         );
 
         if (autoClose && !current) {
-            return LauncherManager.create(
-                settings,
-                clipboardManager,
-                windowsService,
-            );
+            return LauncherManager.create(settings, windowsService);
         }
 
         if (!autoClose && current) {

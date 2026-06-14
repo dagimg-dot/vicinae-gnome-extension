@@ -33,10 +33,7 @@ export class DBusManager {
             clipboardManager,
             extension,
         );
-        this.windowsServiceInstance = new WindowsService(
-            clipboardManager,
-            appClass,
-        );
+        this.windowsServiceInstance = new WindowsService(appClass);
 
         this.clipboardService = createDBusService(
             CLIPBOARD_DBUS_IFACE,

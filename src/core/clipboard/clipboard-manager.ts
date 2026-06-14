@@ -1,22 +1,19 @@
-import Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
-import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import Shell from "gi://Shell";
 import St from "gi://St";
 import { calculateClipboardMetadata } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
 import { SignalRegistry } from "../../utils/signal-registry.js";
+import { BinaryDataStore } from "./binary-data-store.js";
 import { createHandlers } from "./handlers/index.js";
 import type { ClipboardContentHandler } from "./handlers/types.js";
 import type { BufferLike, ClipboardEvent } from "./types.js";
 
-// VirtualKeyboard will be passed from the main extension
-
 export class VicinaeClipboardManager {
     private eventListeners: ((event: ClipboardEvent) => void)[] = [];
-    private virtualKeyboard: Clutter.VirtualInputDevice;
     private contentHandlers: ClipboardContentHandler[] = [];
+    private binaryStore = new BinaryDataStore();
 
     private currentContent: string = "";
     private clipboard: St.Clipboard | null = null;
@@ -24,10 +21,8 @@ export class VicinaeClipboardManager {
     private signals = new SignalRegistry();
     private _debouncing: number = 0;
     private settings: Gio.Settings | null = null;
-    public pasteHackCallbackId: number | null = null;
 
-    constructor(virtualKeyboard: Clutter.VirtualInputDevice) {
-        this.virtualKeyboard = virtualKeyboard;
+    constructor() {
         this.contentHandlers = createHandlers();
     }
 
@@ -177,12 +172,14 @@ export class VicinaeClipboardManager {
                                   marker: string,
                                   data: unknown,
                                   mimeType: string,
-                              ) =>
-                                  this.storeBinaryData(
+                              ) => {
+                                  this.binaryStore.set(
                                       marker,
                                       data as BufferLike,
                                       mimeType,
-                                  ),
+                                  );
+                                  logger.debug(`Stored binary data: ${marker}`);
+                              },
                           }
                         : undefined;
 
@@ -206,41 +203,23 @@ export class VicinaeClipboardManager {
         }
     }
 
-    private binaryDataStore = new Map<
-        string,
-        { data: BufferLike; mimeType: string }
-    >();
-
-    private storeBinaryData(
-        marker: string,
-        data: BufferLike,
-        mimeType: string,
-    ) {
-        this.binaryDataStore.set(marker, { data, mimeType });
-        logger.debug(`Stored binary data: ${marker}`);
-    }
-
     getBinaryData(
         marker: string,
     ): { data: BufferLike; mimeType: string } | null {
-        const entry = this.binaryDataStore.get(marker);
-        logger.debug(
-            `getBinaryData: looking up "${marker}", found: ${entry !== null && entry !== undefined}`,
-        );
-        return entry || null;
+        return this.binaryStore.get(marker);
     }
 
     clearBinaryDataStore(marker?: string): void {
         if (marker) {
             logger.debug(
-                `clearBinaryDataStore: clearing marker "${marker}", store size: ${this.binaryDataStore.size}`,
+                `clearBinaryDataStore: clearing marker "${marker}", store size: ${this.binaryStore.size}`,
             );
-            this.binaryDataStore.delete(marker);
+            this.binaryStore.delete(marker);
         } else {
             logger.debug(
-                `clearBinaryDataStore: clearing all ${this.binaryDataStore.size} entries`,
+                `clearBinaryDataStore: clearing all ${this.binaryStore.size} entries`,
             );
-            this.binaryDataStore.clear();
+            this.binaryStore.clear();
         }
     }
 
@@ -254,8 +233,8 @@ export class VicinaeClipboardManager {
         }
 
         if (!text || text === this.currentContent) {
-            if (this.binaryDataStore.has(text)) {
-                this.binaryDataStore.delete(text);
+            if (this.binaryStore.has(text)) {
+                this.binaryStore.delete(text);
             }
             return;
         }
@@ -427,63 +406,14 @@ export class VicinaeClipboardManager {
         this.emitClipboardEvent(content, source);
     }
 
-    triggerKeyboardPaste() {
-        logger.debug("Trigger keyboard paste called");
-
-        if (this.pasteHackCallbackId) {
-            GLib.source_remove(this.pasteHackCallbackId);
-            this.pasteHackCallbackId = null;
-        }
-
-        this.pasteHackCallbackId = GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT,
-            1, // Just post to the end of the event loop
-            () => {
-                const SHIFT_L = 42;
-                const INSERT = 110;
-
-                const eventTime = Clutter.get_current_event_time() * 1000;
-                this.virtualKeyboard.notify_key(
-                    eventTime,
-                    SHIFT_L,
-                    Clutter.KeyState.PRESSED,
-                );
-                this.virtualKeyboard.notify_key(
-                    eventTime,
-                    INSERT,
-                    Clutter.KeyState.PRESSED,
-                );
-                this.virtualKeyboard.notify_key(
-                    eventTime,
-                    INSERT,
-                    Clutter.KeyState.RELEASED,
-                );
-                this.virtualKeyboard.notify_key(
-                    eventTime,
-                    SHIFT_L,
-                    Clutter.KeyState.RELEASED,
-                );
-
-                this.pasteHackCallbackId = null;
-                return false;
-            },
-        );
-    }
-
     destroy(): void {
-        // Remove any pending timeout
-        if (this.pasteHackCallbackId) {
-            GLib.source_remove(this.pasteHackCallbackId);
-            this.pasteHackCallbackId = null;
-        }
-
         this.signals.disconnectAll();
         this.eventListeners = [];
         this.currentContent = "";
         logger.debug(
-            `destroy: clearing binary store with ${this.binaryDataStore.size} entries`,
+            `destroy: clearing binary store with ${this.binaryStore.size} entries`,
         );
-        this.binaryDataStore.clear();
+        this.binaryStore.clear();
         this.clipboard = null;
         this.selection = null;
         logger.info("Clipboard manager destroyed");

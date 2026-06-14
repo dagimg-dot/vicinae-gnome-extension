@@ -1,4 +1,3 @@
-import Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
 import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 import { VicinaeIndicator } from "./components/indicator.js";
@@ -11,19 +10,6 @@ import {
     logger,
 } from "./utils/logger.js";
 import { SignalRegistry } from "./utils/signal-registry.js";
-
-// Create VirtualKeyboard in extension context
-const getVirtualKeyboard = (() => {
-    let virtualKeyboard: Clutter.VirtualInputDevice;
-    return () => {
-        if (!virtualKeyboard) {
-            virtualKeyboard = Clutter.get_default_backend()
-                .get_default_seat()
-                .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
-        }
-        return virtualKeyboard;
-    };
-})();
 
 export default class Vicinae extends Extension {
     private indicator: VicinaeIndicator | null = null;
@@ -39,9 +25,7 @@ export default class Vicinae extends Extension {
         this.settings = this.getSettings();
         initializeLogger(this.settings);
 
-        this.clipboardManager = new VicinaeClipboardManager(
-            getVirtualKeyboard(),
-        );
+        this.clipboardManager = new VicinaeClipboardManager();
         this.clipboardManager.enable();
         this.clipboardManager.setSettings(this.settings);
 
@@ -64,7 +48,6 @@ export default class Vicinae extends Extension {
         logger.debug("Extension: Initializing launcher manager...");
         this.launcherManager = await LauncherManager.create(
             this.settings,
-            this.clipboardManager,
             this.dbusManager.getWindowsService(),
         );
 
@@ -92,7 +75,6 @@ export default class Vicinae extends Extension {
                     return;
                 LauncherManager.updateOrDestroy(
                     this.settings,
-                    this.clipboardManager,
                     this.dbusManager.getWindowsService(),
                     this.launcherManager,
                 ).then((mgr) => {

@@ -46,6 +46,13 @@ export interface FrameBounds {
     frame_bounds: FrameRect;
 }
 
+export interface Rectangle {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 export interface WindowManager {
     list(): WindowInfo[];
     details(winid: number): WindowInfo;

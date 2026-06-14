@@ -4,7 +4,6 @@ import type Meta from "gi://Meta";
 import { logger } from "../../../utils/logger.js";
 import { SignalRegistry } from "../../../utils/signal-registry.js";
 import { getFocusedWindow } from "../../../utils/window-utils.js";
-import type { VicinaeClipboardManager } from "../../clipboard/clipboard-manager.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
 import { WindowSizeTracker } from "../../windows/window-size-tracker.js";
 
@@ -26,11 +25,8 @@ export class WindowsService {
     private previousFocusedWindow: { id: number; wmClass: string } | null =
         null;
 
-    constructor(clipboardManager: VicinaeClipboardManager, appClass: string) {
-        this.windowManager = new VicinaeWindowManager(
-            clipboardManager,
-            appClass,
-        );
+    constructor(appClass: string) {
+        this.windowManager = new VicinaeWindowManager(appClass);
         this.windowSizeTracker = new WindowSizeTracker((windowId) => {
             this.handleWindowSizeChanged(windowId);
         });
@@ -283,6 +279,12 @@ export class WindowsService {
         this.workspaceChangedSignalId = 0;
         this.focusIdleSourceId = 0;
 
+        // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
+        this.windowManager = null!;
+        // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
+        this.windowSizeTracker = null!;
+        this.dbusObject = null;
+
         logger.debug("WindowsService: Window event listeners cleaned up");
     }
 
@@ -446,19 +448,6 @@ export class WindowsService {
             },
             JSON.stringify,
         );
-    }
-
-    SendShortcut(winid: number, key: string, modifiers: string): boolean {
-        let success = false;
-
-        try {
-            success = this.windowManager.sendShortcut(winid, key, modifiers);
-        } catch (error) {
-            logger.error("D-Bus: Error sending shortcut", error);
-            return false;
-        }
-
-        return success;
     }
 
     GetFocusedWindowSync(): string {
