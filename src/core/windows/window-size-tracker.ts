@@ -18,9 +18,22 @@ export class WindowSizeTracker {
     connectToWindow(window: Meta.Window): void {
         const windowId = window.get_id();
 
+        if (this.windowSizeSignalIds.has(windowId)) {
+            logger.debug(
+                `Window ${windowId} already has a size-changed connection, skipping`,
+            );
+            return;
+        }
+
         try {
             const signalId = window.connect("size-changed", () => {
-                this.onSizeChanged(windowId);
+                try {
+                    this.onSizeChanged(windowId);
+                } catch (error) {
+                    logger.debug(
+                        `Error in size-changed callback for window ${windowId}: ${error}`,
+                    );
+                }
             });
 
             this.windowSizeSignalIds.set(windowId, signalId);
@@ -50,17 +63,16 @@ export class WindowSizeTracker {
     }
 
     disconnectAll(): void {
+        const windowMap = new Map<number, Meta.Window>();
+        for (const actor of global.get_window_actors()) {
+            const mw = actor.meta_window;
+            if (mw) windowMap.set(mw.get_id(), mw);
+        }
+
         for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
             try {
-                const windowActors = global.get_window_actors();
-
-                const windowActor = windowActors.find(
-                    (actor) => actor.meta_window?.get_id() === windowId,
-                );
-
-                if (windowActor?.meta_window && sizeSignalId) {
-                    windowActor.meta_window.disconnect(sizeSignalId);
-                }
+                const mw = windowMap.get(windowId);
+                if (mw && sizeSignalId) mw.disconnect(sizeSignalId);
             } catch (error) {
                 logger.debug(
                     `Error disconnecting size signal for window ${windowId}: ${error}`,
