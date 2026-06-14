@@ -36,9 +36,6 @@ export class TextHandler implements ClipboardContentHandler {
         clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
             if (text) onResult(text);
         });
-        clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
-            if (text) onResult(text);
-        });
     }
 
     set(clipboard: St.Clipboard, content: string): boolean {

@@ -365,7 +365,6 @@ export class VicinaeClipboardManager {
                     `Setting binary clipboard content: ${mimeType}, ${data.length} bytes`,
                 );
 
-                // Use St.Clipboard.set_content for arbitrary MIME types
                 this.clipboard.set_content(
                     St.ClipboardType.CLIPBOARD,
                     mimeType,
@@ -376,16 +375,6 @@ export class VicinaeClipboardManager {
                     mimeType,
                     data,
                 );
-
-                // For text content, also set PRIMARY for better compatibility
-                if (mimeType.startsWith("text/")) {
-                    const text = new TextDecoder().decode(data);
-                    this.clipboard.set_content(
-                        St.ClipboardType.PRIMARY,
-                        "text/plain",
-                        new TextEncoder().encode(text),
-                    );
-                }
 
                 this.emitClipboardEvent(data, "user", mimeType);
                 logger.debug(
