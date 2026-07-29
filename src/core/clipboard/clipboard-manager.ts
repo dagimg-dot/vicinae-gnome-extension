@@ -189,14 +189,6 @@ export class VicinaeClipboardManager {
                     context,
                 );
             }
-
-            if (handler && handler.priority >= 1) {
-                this.clipboard.get_text(St.ClipboardType.PRIMARY, (_, text) => {
-                    if (text) {
-                        this.processClipboardContent(text, "system");
-                    }
-                });
-            }
         } catch (error) {
             logger.error("Error querying clipboard", error);
         }
