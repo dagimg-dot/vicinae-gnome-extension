@@ -1,6 +1,7 @@
 import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
+import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { logger } from "../../../utils/logger.js";
 import { SignalRegistry } from "../../../utils/signal-registry.js";
 import { getFocusedWindow } from "../../../utils/window-utils.js";
@@ -83,6 +84,7 @@ export class WindowsService {
                     );
 
                     this.windowSizeTracker.connectToWindow(window);
+                    this.hideOverviewWhenLauncherOpens(window);
                 } catch (error) {
                     logger.debug(
                         `Error handling window opened event: ${error}`,
@@ -182,6 +184,29 @@ export class WindowsService {
         logger.debug(
             "WindowsService: GNOME window event listeners set up successfully",
         );
+    }
+
+    private hideOverviewWhenLauncherOpens(window: Meta.Window): void {
+        if (!Main.overview.visible) return;
+
+        const wmClass = window.get_wm_class();
+        if (!wmClass) {
+            const notifyId = window.connect("notify::wm-class", () => {
+                window.disconnect(notifyId);
+                this.hideOverviewWhenLauncherOpens(window);
+            });
+            return;
+        }
+
+        if (this.windowManager.isTargetWindow(wmClass)) {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                Main.overview.hide();
+                logger.debug(
+                    "WindowsService: Vicinae window opened, closing GNOME overview",
+                );
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     private handleWindowSizeChanged(windowId: number): void {
