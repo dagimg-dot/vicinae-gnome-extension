@@ -22,8 +22,7 @@ export const ClipboardPage = GObject.registerClass(
     },
     class ClipboardPage extends Adw.PreferencesPage {
         private settings!: Gio.Settings;
-        private blockedAppRows: Map<string, BlockedAppRowInstance> = new Map();
-        private emptyRows: Set<BlockedAppRowInstance> = new Set();
+        private rowInstances: Set<BlockedAppRowInstance> = new Set();
 
         bindSettings(settings: Gio.Settings) {
             this.settings = settings;
@@ -87,12 +86,10 @@ export const ClipboardPage = GObject.registerClass(
                 }
 
                 const children = this as unknown as ClipboardPageChildren;
-                const existingRows = Array.from(this.blockedAppRows.values());
-                existingRows.forEach((row) => {
+                this.rowInstances.forEach((row) => {
                     children._blockedAppsGroup.remove(row);
                 });
-                this.blockedAppRows.clear();
-                this.emptyRows.clear();
+                this.rowInstances.clear();
 
                 uniqueBlockedApps.forEach((windowClass) => {
                     this.addBlockedAppRow(windowClass);
@@ -115,11 +112,11 @@ export const ClipboardPage = GObject.registerClass(
         }
 
         private addEmptyBlockedAppRow() {
-            if (this.emptyRows.size > 0) {
-                const firstEmptyRow = this.emptyRows.values().next().value;
-                if (firstEmptyRow) {
-                    firstEmptyRow.focusInput();
-                }
+            const firstEmptyRow = Array.from(this.rowInstances).find((r) =>
+                r.isEmpty(),
+            );
+            if (firstEmptyRow) {
+                firstEmptyRow.focusInput();
                 return;
             }
             this.addBlockedAppRow("");
@@ -145,36 +142,27 @@ export const ClipboardPage = GObject.registerClass(
 
             children._blockedAppsGroup.add_row(row);
 
-            if (windowClass) {
-                this.blockedAppRows.set(windowClass, row);
-            } else {
-                this.emptyRows.add(row);
+            if (!windowClass) {
                 row.focusInput();
             }
+
+            this.rowInstances.add(row);
 
             this.updateAddButtonState();
         }
 
-        private handleInputChange(row: BlockedAppRowInstance) {
-            const isEmpty = row.isEmpty();
-            const wasEmpty = this.emptyRows.has(row);
-
-            if (isEmpty && !wasEmpty) {
-                this.emptyRows.add(row);
-            } else if (!isEmpty && wasEmpty) {
-                this.emptyRows.delete(row);
-            }
-
+        private handleInputChange(_row: BlockedAppRowInstance) {
             this.updateAddButtonState();
         }
 
         private updateAddButtonState() {
             const children = this as unknown as ClipboardPageChildren;
-            const hasEmptyRows = this.emptyRows.size > 0;
+            const hasEmptyRows = Array.from(this.rowInstances).some((r) =>
+                r.isEmpty(),
+            );
             children._addWindowButton.set_sensitive(!hasEmptyRows);
 
-            const hasAnyRows =
-                this.blockedAppRows.size > 0 || this.emptyRows.size > 0;
+            const hasAnyRows = this.rowInstances.size > 0;
             children._emptyPlaceholderRow.set_visible(!hasAnyRows);
         }
 
@@ -216,7 +204,7 @@ export const ClipboardPage = GObject.registerClass(
         }
 
         private updateBlockedAppInSettings(
-            row: BlockedAppRowInstance,
+            _row: BlockedAppRowInstance,
             oldClass: string,
             newClass: string,
         ) {
@@ -238,11 +226,6 @@ export const ClipboardPage = GObject.registerClass(
                 filteredApps.push(newClass);
 
                 this.settings.set_strv("blocked-applications", filteredApps);
-
-                if (oldClass && oldClass.trim() !== "") {
-                    this.blockedAppRows.delete(oldClass);
-                }
-                this.blockedAppRows.set(newClass, row);
             } catch (error) {
                 logger.error("Error updating blocked app in settings", error);
             }
@@ -266,8 +249,6 @@ export const ClipboardPage = GObject.registerClass(
                 );
 
                 this.settings.set_strv("blocked-applications", filteredApps);
-
-                this.blockedAppRows.delete(oldClass);
             } catch (error) {
                 logger.error("Error removing blocked app from settings", error);
             }
@@ -286,12 +267,9 @@ export const ClipboardPage = GObject.registerClass(
                     (app) => app !== windowClass,
                 );
                 this.settings.set_strv("blocked-applications", updatedApps);
-
-                this.blockedAppRows.delete(windowClass);
-            } else {
-                this.emptyRows.delete(row);
             }
 
+            this.rowInstances.delete(row);
             children._blockedAppsGroup.remove(row);
 
             this.updateAddButtonState();

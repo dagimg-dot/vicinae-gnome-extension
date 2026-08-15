@@ -26,9 +26,11 @@ export class VicinaeClipboardManager {
         this.contentHandlers = createHandlers();
         this.clipboard = St.Clipboard.get_default();
         this.selection = Shell.Global.get().get_display().get_selection();
-        
+
         if (!this.selection) {
-            logger.error("Failed to get selection instance in clipboard manager");
+            logger.error(
+                "Failed to get selection instance in clipboard manager",
+            );
         }
     }
 
@@ -180,19 +182,19 @@ export class VicinaeClipboardManager {
                 const context =
                     handler.priority >= 1
                         ? {
-                            storeBinaryData: (
-                                marker: string,
-                                data: unknown,
-                                mimeType: string,
-                            ) => {
-                                this.binaryStore.set(
-                                    marker,
-                                    data as BufferLike,
-                                    mimeType,
-                                );
-                                logger.debug(`Stored binary data: ${marker}`);
-                            },
-                        }
+                              storeBinaryData: (
+                                  marker: string,
+                                  data: unknown,
+                                  mimeType: string,
+                              ) => {
+                                  this.binaryStore.set(
+                                      marker,
+                                      data as BufferLike,
+                                      mimeType,
+                                  );
+                                  logger.debug(`Stored binary data: ${marker}`);
+                              },
+                          }
                         : undefined;
 
                 handler.capture(
