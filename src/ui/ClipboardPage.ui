@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="VicinaeClipboardPage" parent="AdwPreferencesPage">
+    <property name="title" translatable="true">Clipboard</property>
+    <property name="icon_name">edit-copy-symbolic</property>
+    <child>
+      <object class="AdwPreferencesGroup" id="clipboardSettingsGroup">
+        <property name="title" translatable="true">Clipboard Settings</property>
+        <property name="description" translatable="true">Manage clipboard functionality and privacy</property>
+        <child>
+          <object class="AdwSwitchRow" id="enableClipboardMonitoring">
+            <property name="title" translatable="true">Enable Clipboard Monitoring</property>
+            <property name="subtitle" translatable="true">Required for Vicinae clipboard history. Disabling saves memory but prevents clipboard functionalities on Vicinae.</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwExpanderRow" id="blockedAppsGroup">
+            <property name="title" translatable="true">Blocked Applications</property>
+            <property name="subtitle" translatable="true">Applications in this list will be blocked from clipboard access</property>
+            <property name="expanded">true</property>
+            <child type="action">
+              <object class="GtkButton" id="addWindowButton">
+                <property name="label" translatable="true">Add window</property>
+                <property name="css-classes">suggested-action</property>
+                <property name="valign">center</property>
+              </object>
+            </child>
+            <child type="action">
+              <object class="GtkMenuButton" id="helpWindowButton">
+                <property name="icon-name">dialog-information-symbolic</property>
+                <property name="valign">center</property>
+                <property name="css-classes">flat</property>
+                <property name="popover">
+                  <object class="GtkPopover">
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <property name="margin-top">12</property>
+                        <property name="margin-bottom">12</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label" translatable="true">&lt;b&gt;What is a Window Class?&lt;/b&gt;</property>
+                            <property name="use-markup">true</property>
+                            <property name="halign">start</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label" translatable="true">A window class is a unique identifier for an application.
+
+&lt;b&gt;On Wayland:&lt;/b&gt; Press Alt+F2, type &lt;tt&gt;lg&lt;/tt&gt; and press Enter. Go to the "Windows" tab and look for the "wmclass" of your app.
+&lt;b&gt;On X11:&lt;/b&gt; Open a terminal and run &lt;tt&gt;xprop WM_CLASS&lt;/tt&gt;, then click on the application window.</property>
+                            <property name="use-markup">true</property>
+                            <property name="wrap">true</property>
+                            <property name="max-width-chars">40</property>
+                            <property name="halign">start</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow" id="emptyPlaceholderRow">
+                <property name="title" translatable="true">No windows blocked</property>
+                <property name="sensitive">false</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

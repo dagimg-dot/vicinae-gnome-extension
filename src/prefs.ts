@@ -4,6 +4,7 @@ import type Gio from "gi://Gio";
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 
 import { AboutPage } from "./prefs/AboutPage.js";
+import { ClipboardPage } from "./prefs/ClipboardPage.js";
 import { GeneralPage } from "./prefs/GeneralPage.js";
 
 export default class VicinaePrefs extends ExtensionPreferences {
@@ -21,6 +22,10 @@ export default class VicinaePrefs extends ExtensionPreferences {
         const generalPage = new GeneralPage();
         generalPage.bindSettings(prefsWindow._settings);
         prefsWindow.add(generalPage);
+
+        const clipboardPage = new ClipboardPage();
+        clipboardPage.bindSettings(prefsWindow._settings);
+        prefsWindow.add(clipboardPage);
 
         const aboutPage = new AboutPage();
         aboutPage.setMetadata(this.metadata);

@@ -26,7 +26,9 @@ export default class Vicinae extends Extension {
         initializeLogger(this.settings);
 
         this.clipboardManager = new VicinaeClipboardManager();
-        this.clipboardManager.enable();
+        if (this.settings.get_boolean("enable-clipboard-monitoring")) {
+            this.clipboardManager.enable();
+        }
         this.clipboardManager.setSettings(this.settings);
 
         const appClass =
@@ -92,6 +94,22 @@ export default class Vicinae extends Extension {
             },
         );
         this.signals.add(() => this.settings?.disconnect(blockedAppsId));
+
+        const enableMonitoringId = this.settings.connect(
+            "changed::enable-clipboard-monitoring",
+            () => {
+                if (this.clipboardManager && this.settings) {
+                    if (
+                        this.settings.get_boolean("enable-clipboard-monitoring")
+                    ) {
+                        this.clipboardManager.enable();
+                    } else {
+                        this.clipboardManager.disable();
+                    }
+                }
+            },
+        );
+        this.signals.add(() => this.settings?.disconnect(enableMonitoringId));
 
         logger.info("Vicinae extension initialized successfully");
     }

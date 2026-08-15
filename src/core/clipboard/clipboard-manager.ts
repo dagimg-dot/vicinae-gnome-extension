@@ -26,7 +26,18 @@ export class VicinaeClipboardManager {
     }
 
     enable() {
-        this.setupClipboardMonitoring();
+        if (!this.clipboard) {
+            this.setupClipboardMonitoring();
+        }
+    }
+
+    disable() {
+        if (this.clipboard) {
+            this.signals.disconnectAll();
+            this.clipboard = null;
+            this.selection = null;
+            logger.info("Clipboard monitoring disabled");
+        }
     }
 
     setSettings(settings: Gio.Settings): void {
@@ -167,19 +178,19 @@ export class VicinaeClipboardManager {
                 const context =
                     handler.priority >= 1
                         ? {
-                              storeBinaryData: (
-                                  marker: string,
-                                  data: unknown,
-                                  mimeType: string,
-                              ) => {
-                                  this.binaryStore.set(
-                                      marker,
-                                      data as BufferLike,
-                                      mimeType,
-                                  );
-                                  logger.debug(`Stored binary data: ${marker}`);
-                              },
-                          }
+                            storeBinaryData: (
+                                marker: string,
+                                data: unknown,
+                                mimeType: string,
+                            ) => {
+                                this.binaryStore.set(
+                                    marker,
+                                    data as BufferLike,
+                                    mimeType,
+                                );
+                                logger.debug(`Stored binary data: ${marker}`);
+                            },
+                        }
                         : undefined;
 
                 handler.capture(
@@ -382,7 +393,7 @@ export class VicinaeClipboardManager {
     }
 
     destroy(): void {
-        this.signals.disconnectAll();
+        this.disable();
         this.eventListeners = [];
         this.currentContent = "";
         logger.debug(
