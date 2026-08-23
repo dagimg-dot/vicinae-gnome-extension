@@ -26,10 +26,10 @@ export default class Vicinae extends Extension {
         initializeLogger(this.settings);
 
         this.clipboardManager = new VicinaeClipboardManager();
+        this.clipboardManager.setSettings(this.settings);
         if (this.settings.get_boolean("enable-clipboard-monitoring")) {
             this.clipboardManager.enable();
         }
-        this.clipboardManager.setSettings(this.settings);
 
         const appClass =
             this.settings.get_string("launcher-app-class") || "vicinae";
