@@ -1,7 +1,6 @@
 import St from "gi://St";
 import {
     decodeClipboardBytes,
-    isFileUri,
     parseFileUris,
     toUriListFormat,
 } from "../../../utils/clipboard-utils.js";
@@ -22,8 +21,8 @@ export class FileHandler implements ClipboardContentHandler {
         return types.includes(MIME_TYPE);
     }
 
-    matchesContent(content: string): boolean {
-        return isFileUri(content);
+    matchesContent(_content: string): boolean {
+        return false;
     }
 
     capture(

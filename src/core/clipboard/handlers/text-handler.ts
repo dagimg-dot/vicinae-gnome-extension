@@ -1,5 +1,4 @@
 import St from "gi://St";
-import { isFileUri } from "../../../utils/clipboard-utils.js";
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
@@ -19,7 +18,6 @@ export class TextHandler implements ClipboardContentHandler {
 
     matchesContent(content: string): boolean {
         if (typeof content !== "string") return false;
-        if (isFileUri(content)) return false;
         if (
             content.startsWith("[BINARY_IMAGE:") ||
             content.startsWith("[BINARY_DATA:")
