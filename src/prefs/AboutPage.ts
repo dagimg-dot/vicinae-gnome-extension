@@ -122,8 +122,8 @@ export const AboutPage = GObject.registerClass(
                 children._linkWebsite.connect("clicked", () => {
                     Gtk.show_uri(null, metadata.url || "", Gdk.CURRENT_TIME);
                 });
-                children._linkIssues.connect("clicked", () => {
-                    const issueUrl = makeBugReportUrl(metadata);
+                children._linkIssues.connect("clicked", async () => {
+                    const issueUrl = await makeBugReportUrl(metadata);
                     Gtk.show_uri(null, issueUrl, Gdk.CURRENT_TIME);
                 });
             } else {

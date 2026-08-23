@@ -1,4 +1,6 @@
+import Gio from "gi://Gio";
 import GLib from "gi://GLib";
+import * as Config from "resource:///org/gnome/Shell/Extensions/js/misc/config.js";
 
 export interface ExtensionMetadata {
     path?: string;
@@ -13,45 +15,36 @@ export interface ExtensionMetadata {
 
 declare const __VICINAE_ENV_SUFFIX__: string | undefined;
 
-function getKernelAndArch(): string {
+async function getKernelVersionAsync(): Promise<string> {
     try {
-        const [success, stdout] = GLib.spawn_command_line_sync("uname -srm");
-        if (success && stdout) {
-            return new TextDecoder().decode(stdout).trim();
+        const file = Gio.File.new_for_path("/proc/version");
+        const [contents] = await file.load_contents_async(null);
+        if (contents) {
+            const text = new TextDecoder().decode(contents).trim();
+            const match = text.match(/^Linux version ([^\s]+)/);
+            if (match?.[1]) {
+                return `Linux ${match[1]}`;
+            }
+            return text.substring(0, 50);
         }
     } catch {
-        // Fallback if spawn fails
+        // Fallback if reading fails
     }
     return "Linux";
 }
 
-function getGnomeShellVersion(metadata: ExtensionMetadata): string {
-    try {
-        const [success, stdout] = GLib.spawn_command_line_sync(
-            "gnome-shell --version",
-        );
-        if (success && stdout) {
-            const output = new TextDecoder().decode(stdout).trim();
-            const match = output.match(/GNOME Shell ([\d.]+)/i);
-            if (match?.[1]) {
-                return match[1];
-            }
-            return output;
-        }
-    } catch {
-        // Fallback if spawn fails
-    }
-
-    return metadata["shell-version"]?.join(", ") || "unknown";
-}
-
-export function buildSystemInfo(metadata: ExtensionMetadata): string {
+export async function buildSystemInfo(
+    metadata: ExtensionMetadata,
+): Promise<string> {
     const osName =
         GLib.get_os_info("PRETTY_NAME") || GLib.get_os_info("NAME") || "Linux";
     const sessionType = GLib.getenv("XDG_SESSION_TYPE") || "unknown";
     const desktop = GLib.getenv("XDG_CURRENT_DESKTOP") || "GNOME";
-    const kernel = getKernelAndArch();
-    const shellVersion = getGnomeShellVersion(metadata);
+    const kernel = await getKernelVersionAsync();
+    const shellVersion =
+        Config.PACKAGE_VERSION ||
+        metadata["shell-version"]?.join(", ") ||
+        "unknown";
 
     const versionStr = `v${metadata["version-name"] || metadata.version || "1.0.0"}${
         typeof __VICINAE_ENV_SUFFIX__ !== "undefined"
@@ -69,10 +62,12 @@ export function buildSystemInfo(metadata: ExtensionMetadata): string {
     ].join("\n");
 }
 
-export function makeBugReportUrl(metadata: ExtensionMetadata): string {
+export async function makeBugReportUrl(
+    metadata: ExtensionMetadata,
+): Promise<string> {
     const baseUrl =
         metadata.url || "https://github.com/vicinaehq/gnome-extension";
-    const systemInfo = buildSystemInfo(metadata);
+    const systemInfo = await buildSystemInfo(metadata);
 
     const body = [
         "### System Information",
