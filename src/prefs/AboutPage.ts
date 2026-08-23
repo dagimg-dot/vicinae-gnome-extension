@@ -5,19 +5,12 @@ import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 import { Icons } from "../lib/icons.js";
 
-interface ExtensionMetadata {
-    path?: string;
-    name: string;
-    description: string;
-    uuid: string;
-    version?: string;
-    "version-name"?: string;
-    "shell-version": readonly string[];
-    url?: string;
-}
-
 import type { AboutPageChildren, Credit } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
+import {
+    type ExtensionMetadata,
+    makeBugReportUrl,
+} from "../utils/issue-report.js";
 
 export const CREDITS: Credit[] = [
     {
@@ -125,11 +118,8 @@ export const AboutPage = GObject.registerClass(
                     Gtk.show_uri(null, metadata.url || "", Gdk.CURRENT_TIME);
                 });
                 children._linkIssues.connect("clicked", () => {
-                    Gtk.show_uri(
-                        null,
-                        `${metadata.url}/issues`,
-                        Gdk.CURRENT_TIME,
-                    );
+                    const issueUrl = makeBugReportUrl(metadata);
+                    Gtk.show_uri(null, issueUrl, Gdk.CURRENT_TIME);
                 });
             } else {
                 children._linkWebsite.visible = false;

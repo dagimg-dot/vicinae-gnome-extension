@@ -54,11 +54,19 @@
           </object>
         </child>
         <child>
-          <object class="AdwEntryRow" id="journalctlCommand">
+          <object class="AdwActionRow" id="journalctlRow">
             <property name="title" translatable="true">Extension Logs Command</property>
-            <property name="text">journalctl /usr/bin/gnome-shell -f -o cat</property>
-            <property name="editable">false</property>
-            <property name="show-apply-button">false</property>
+            <property name="subtitle">journalctl --user -n 50 -g &quot;Vicinae&quot;</property>
+            <child>
+              <object class="GtkButton" id="copyLogsCommandButton">
+                <property name="valign">3</property>
+                <property name="icon-name">edit-copy-symbolic</property>
+                <property name="tooltip-text" translatable="true">Copy Command</property>
+                <style>
+                  <class name="flat"/>
+                </style>
+              </object>
+            </child>
           </object>
         </child>
       </object>

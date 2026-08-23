@@ -1,9 +1,13 @@
 import Adw from "gi://Adw";
+import Gdk from "gi://Gdk";
 import Gio from "gi://Gio";
+import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import type { GeneralPageChildren } from "../types/prefs.js";
 import { getTemplate } from "../utils/getTemplate.js";
 import { logger } from "../utils/logger.js";
+
+const LOGS_COMMAND = 'journalctl --user -n 50 -g "Vicinae"';
 
 /** GSettings `logging-level` string values, in ComboRow order. */
 const LOGGING_LEVELS: readonly string[] = ["error", "warn", "info", "debug"];
@@ -17,7 +21,8 @@ export const GeneralPage = GObject.registerClass(
             "loggingLevel",
             "launcherAutoCloseFocusLoss",
             "launcherAppClass",
-            "journalctlCommand",
+            "journalctlRow",
+            "copyLogsCommandButton",
         ],
     },
     class GeneralPage extends Adw.PreferencesPage {
@@ -33,6 +38,25 @@ export const GeneralPage = GObject.registerClass(
             this.bindLoggingLevel(settings, children);
             this.bindLauncherAutoCloseFocusLoss(settings, children);
             this.bindLauncherAppClass(settings, children);
+            this.bindCopyLogsCommand(children);
+        }
+
+        private bindCopyLogsCommand(children: GeneralPageChildren) {
+            children._copyLogsCommandButton.connect("clicked", () => {
+                const display = Gdk.Display.get_default();
+                display?.get_clipboard()?.set(LOGS_COMMAND);
+
+                children._copyLogsCommandButton.set_icon_name(
+                    "object-select-symbolic",
+                );
+
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+                    children._copyLogsCommandButton.set_icon_name(
+                        "edit-copy-symbolic",
+                    );
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
         }
 
         /** `show-status-indicator` ↔ status indicator switch. */

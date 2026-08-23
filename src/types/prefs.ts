@@ -6,7 +6,8 @@ export interface GeneralPageChildren {
     _loggingLevel: Adw.ComboRow;
     _launcherAutoCloseFocusLoss: Adw.SwitchRow;
     _launcherAppClass: Adw.EntryRow;
-    _journalctlCommand: Adw.EntryRow;
+    _journalctlRow: Adw.ActionRow;
+    _copyLogsCommandButton: Gtk.Button;
 }
 
 export interface ClipboardPageChildren {
