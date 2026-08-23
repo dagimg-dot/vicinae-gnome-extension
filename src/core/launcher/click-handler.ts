@@ -2,7 +2,7 @@ import Clutter from "gi://Clutter";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { SignalRegistry } from "../../utils/signal-registry.js";
-import type { VicinaeWindowManager } from "../windows/window-manager.js";
+import { isTargetWindow } from "../../utils/window-utils.js";
 
 declare const global: {
     stage: Clutter.Stage;
@@ -14,7 +14,7 @@ export class ClickHandler {
     private signals = new SignalRegistry();
 
     constructor(
-        private windowManager: VicinaeWindowManager,
+        private appClass: string,
         private onClickOutside: () => void,
     ) {}
 
@@ -60,12 +60,9 @@ export class ClickHandler {
             });
 
             const clickedWindow = window?.meta_window;
+            const isLauncher = isTargetWindow(clickedWindow, this.appClass);
 
-            const isTargetWindow = this.windowManager.isTargetWindow(
-                clickedWindow?.get_wm_class() || "",
-            );
-
-            if (!clickedWindow || !isTargetWindow) {
+            if (!clickedWindow || !isLauncher) {
                 this.onClickOutside();
             }
         } catch (error) {

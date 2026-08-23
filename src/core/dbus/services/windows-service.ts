@@ -4,7 +4,10 @@ import type Meta from "gi://Meta";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { logger } from "../../../utils/logger.js";
 import { SignalRegistry } from "../../../utils/signal-registry.js";
-import { getFocusedWindow } from "../../../utils/window-utils.js";
+import {
+    getFocusedWindow,
+    isTargetWindow,
+} from "../../../utils/window-utils.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
 import { WindowSizeTracker } from "../../windows/window-size-tracker.js";
 
@@ -26,7 +29,7 @@ export class WindowsService {
     private previousFocusedWindow: { id: number; wmClass: string } | null =
         null;
 
-    constructor(appClass: string) {
+    constructor(private appClass: string) {
         this.windowManager = new VicinaeWindowManager(appClass);
         this.windowSizeTracker = new WindowSizeTracker((windowId) => {
             this.handleWindowSizeChanged(windowId);
@@ -118,9 +121,7 @@ export class WindowsService {
                                 const currentWmClass =
                                     focusWindow.get_wm_class() || "";
                                 if (
-                                    !this.windowManager.isTargetWindow(
-                                        currentWmClass,
-                                    )
+                                    !isTargetWindow(focusWindow, this.appClass)
                                 ) {
                                     this.previousFocusedWindow = {
                                         id: focusWindow.get_id(),
@@ -198,7 +199,7 @@ export class WindowsService {
             return;
         }
 
-        if (this.windowManager.isTargetWindow(wmClass)) {
+        if (isTargetWindow(window, this.appClass)) {
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 Main.overview.hide();
                 logger.debug(
@@ -340,11 +341,7 @@ export class WindowsService {
             "listing windows",
             () => {
                 GLib.usleep(1000);
-                const windows = this.windowManager.list();
-                return windows.filter(
-                    (window) =>
-                        !this.windowManager.isTargetWindow(window.wm_class),
-                );
+                return this.windowManager.list();
             },
             JSON.stringify,
         );
@@ -485,8 +482,8 @@ export class WindowsService {
 
             const currentWmClass = focusedWindow.get_wm_class() || "";
 
-            // If current focused window is Vicinae, return previous window
-            if (this.windowManager.isTargetWindow(currentWmClass)) {
+            // If current focused window is Vicinae launcher, return previous window
+            if (isTargetWindow(focusedWindow, this.appClass)) {
                 if (this.previousFocusedWindow) {
                     logger.debug(
                         `GetFocusedWindowSync: Vicinae focused, returning previous window: ${this.previousFocusedWindow.wmClass}`,

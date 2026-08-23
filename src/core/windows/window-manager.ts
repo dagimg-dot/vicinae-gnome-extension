@@ -1,9 +1,9 @@
 import type Meta from "gi://Meta";
-import { logger } from "../../utils/logger.js";
 import {
     getCurrentTime,
     getWindowById,
     isMaximized,
+    isTargetWindow,
 } from "../../utils/window-utils.js";
 import type {
     FrameBounds,
@@ -24,24 +24,6 @@ export class VicinaeWindowManager implements WindowManager {
 
     constructor(appClass: string) {
         this.appClass = appClass;
-    }
-
-    /**
-     * Checks if the window is a target window.
-     *
-     * @param wmClass - The window manager class of the window.
-     * @returns True if the window is a target window, false otherwise.
-     */
-    isTargetWindow(wmClass: string): boolean {
-        if (!wmClass) {
-            logger.debug("isTargetWindow: No wmClass provided");
-            return false;
-        }
-
-        return (
-            wmClass.toLowerCase().includes(this.appClass.toLowerCase()) ||
-            this.appClass.toLowerCase().includes(wmClass.toLowerCase())
-        );
     }
 
     private static toWindowInfo(mw: Meta.Window): WindowInfo {
@@ -82,7 +64,10 @@ export class VicinaeWindowManager implements WindowManager {
         return global
             .get_window_actors()
             .map((w) => w.meta_window)
-            .filter((mw): mw is Meta.Window => mw !== null)
+            .filter(
+                (mw): mw is Meta.Window =>
+                    mw !== null && !isTargetWindow(mw, this.appClass),
+            )
             .map(VicinaeWindowManager.toWindowInfo);
     }
 

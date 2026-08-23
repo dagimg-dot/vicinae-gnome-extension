@@ -2,6 +2,7 @@ import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { SignalRegistry } from "../../utils/signal-registry.js";
+import { isTargetWindow } from "../../utils/window-utils.js";
 
 declare const global: {
     display: Meta.Display;
@@ -128,7 +129,7 @@ export class WindowTracker {
                 return;
             }
 
-            if (wmClass.toLowerCase().includes(this.appClass.toLowerCase())) {
+            if (isTargetWindow(window, this.appClass)) {
                 if (!this.trackedWindows.has(windowId)) {
                     this.trackedWindows.add(windowId);
                     this.onWindowTracked(windowId);

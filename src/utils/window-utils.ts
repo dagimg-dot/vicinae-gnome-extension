@@ -60,3 +60,34 @@ export const isMaximized = (win: Meta.Window) => {
     // @ts-expect-error - get_maximized is not in the type definitions for GNOME 49+
     return win.get_maximized();
 };
+
+/**
+ * Checks if a window is the Vicinae launcher window.
+ * Matches wm_class and excludes non-launcher windows (such as Settings).
+ */
+export const isTargetWindow = (
+    window: Meta.Window | null | undefined,
+    appClass: string = "vicinae",
+): boolean => {
+    if (!window) return false;
+
+    const wmClass = window.get_wm_class();
+    if (!wmClass) return false;
+
+    const lowerWmClass = wmClass.toLowerCase();
+    const lowerAppClass = appClass.toLowerCase();
+
+    if (
+        !lowerWmClass.includes(lowerAppClass) &&
+        !lowerAppClass.includes(lowerWmClass)
+    ) {
+        return false;
+    }
+
+    const title = window.get_title();
+    if (title?.toLowerCase().includes("setting")) {
+        return false;
+    }
+
+    return true;
+};

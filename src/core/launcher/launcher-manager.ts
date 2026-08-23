@@ -2,6 +2,7 @@ import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
+import { isTargetWindow } from "../../utils/window-utils.js";
 import type { WindowsService } from "../dbus/services/windows-service.js";
 import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
@@ -88,7 +89,7 @@ export class LauncherManager {
     }
 
     private setupClickHandling() {
-        this.clickHandler = new ClickHandler(this.windowManager, () =>
+        this.clickHandler = new ClickHandler(this.config.appClass, () =>
             this.closeTrackedWindows(),
         );
         this.clickHandler.enable();
@@ -98,14 +99,7 @@ export class LauncherManager {
         if (!this.isEnabled) return;
 
         const focusedWindow = global.display.get_focus_window();
-        if (!focusedWindow) {
-            this.closeTrackedWindows();
-            return;
-        }
-
-        const focusedWmClass =
-            focusedWindow.get_wm_class()?.toLowerCase() || "";
-        if (!focusedWmClass.includes(this.config.appClass.toLowerCase())) {
+        if (!isTargetWindow(focusedWindow, this.config.appClass)) {
             this.closeTrackedWindows();
         }
     }
