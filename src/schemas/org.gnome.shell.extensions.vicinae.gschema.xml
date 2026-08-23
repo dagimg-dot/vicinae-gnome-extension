@@ -6,6 +6,11 @@
             <summary>Blocked applications</summary>
             <description>List of application names that should be blocked from clipboard access</description>
         </key>
+        <key name="enable-clipboard-monitoring" type="b">
+            <default>true</default>
+            <summary>Enable clipboard monitoring</summary>
+            <description>Whether to monitor clipboard changes. Disabling this saves memory but prevents Vicinae from accessing the clipboard history.</description>
+        </key>
         <key name="show-status-indicator" type="b">
             <default>true</default>
             <summary>Show status bar indicator</summary>

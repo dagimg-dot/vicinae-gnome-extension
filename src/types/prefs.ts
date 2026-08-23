@@ -2,13 +2,18 @@ import type Adw from "gi://Adw";
 import type Gtk from "gi://Gtk";
 
 export interface GeneralPageChildren {
-    _blockedAppsGroup: Adw.PreferencesGroup;
-    _addWindowButton: Gtk.Button;
     _showStatusIndicator: Adw.SwitchRow;
     _loggingLevel: Adw.ComboRow;
     _launcherAutoCloseFocusLoss: Adw.SwitchRow;
     _launcherAppClass: Adw.EntryRow;
     _journalctlCommand: Adw.EntryRow;
+}
+
+export interface ClipboardPageChildren {
+    _enableClipboardMonitoring: Adw.SwitchRow;
+    _blockedAppsGroup: Adw.ExpanderRow;
+    _emptyPlaceholderRow: Adw.ActionRow;
+    _addWindowButton: Gtk.Button;
 }
 
 export interface AboutPageChildren {

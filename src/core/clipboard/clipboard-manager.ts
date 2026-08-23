@@ -20,13 +20,33 @@ export class VicinaeClipboardManager {
     private selection: Meta.Selection | null = null;
     private signals = new SignalRegistry();
     private settings: Gio.Settings | null = null;
+    private isMonitoring = false;
 
     constructor() {
         this.contentHandlers = createHandlers();
+        this.clipboard = St.Clipboard.get_default();
+        this.selection = Shell.Global.get().get_display().get_selection();
+
+        if (!this.selection) {
+            logger.error(
+                "Failed to get selection instance in clipboard manager",
+            );
+        }
     }
 
     enable() {
-        this.setupClipboardMonitoring();
+        if (!this.isMonitoring) {
+            this.isMonitoring = true;
+            this.setupClipboardMonitoring();
+        }
+    }
+
+    disable() {
+        if (this.isMonitoring) {
+            this.signals.disconnectAll();
+            this.isMonitoring = false;
+            logger.info("Clipboard monitoring disabled");
+        }
     }
 
     setSettings(settings: Gio.Settings): void {
@@ -116,9 +136,6 @@ export class VicinaeClipboardManager {
 
     private setupClipboardMonitoring() {
         try {
-            this.clipboard = St.Clipboard.get_default();
-            this.selection = Shell.Global.get().get_display().get_selection();
-
             if (this.selection) {
                 const selectionId = this.selection.connect(
                     "owner-changed",
@@ -133,8 +150,6 @@ export class VicinaeClipboardManager {
                 logger.info(
                     "Clipboard monitoring set up successfully using selection listener",
                 );
-            } else {
-                logger.error("Failed to get selection instance");
             }
         } catch (error) {
             logger.error("Error setting up clipboard monitoring", error);
@@ -382,7 +397,7 @@ export class VicinaeClipboardManager {
     }
 
     destroy(): void {
-        this.signals.disconnectAll();
+        this.disable();
         this.eventListeners = [];
         this.currentContent = "";
         logger.debug(

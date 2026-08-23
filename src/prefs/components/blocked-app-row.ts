@@ -1,9 +1,10 @@
 import Adw from "gi://Adw";
+import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 
 /**
- * Expandable row for editing a blocked-application window class in preferences.
+ * Action row for editing a blocked-application window class in preferences.
  */
 export const BlockedAppRow = GObject.registerClass(
     {
@@ -23,31 +24,17 @@ export const BlockedAppRow = GObject.registerClass(
             "input-changed": {},
         },
     },
-    class BlockedAppRow extends Adw.ExpanderRow {
+    class BlockedAppRow extends Adw.EntryRow {
         private windowClass: string = "";
-        private inputValue: string = "";
         private originalWindowClass: string = "";
-        private windowEntry: Adw.EntryRow;
-        private checkButton: Gtk.Button;
+
         private deleteButton: Gtk.Button;
 
         constructor() {
             super();
 
-            this.set_title("Expand this row to enter window class");
-            this.set_subtitle("");
-
-            this.windowEntry = new Adw.EntryRow({
-                title: "Window Class",
-                text: "",
-            });
-
-            this.checkButton = new Gtk.Button({
-                icon_name: "object-select-symbolic",
-                valign: Gtk.Align.CENTER,
-                tooltip_text: "Save and close",
-                css_classes: ["flat", "suggested-action"],
-            });
+            this.set_title("Window Class");
+            this.set_show_apply_button(true);
 
             this.deleteButton = new Gtk.Button({
                 icon_name: "user-trash-symbolic",
@@ -56,38 +43,32 @@ export const BlockedAppRow = GObject.registerClass(
                 css_classes: ["flat"],
             });
 
-            this.add_suffix(this.checkButton);
             this.add_suffix(this.deleteButton);
-            this.add_row(this.windowEntry);
-
-            this.checkButton.visible = false;
-
-            this.checkButton.connect("clicked", () => {
-                this.saveChanges();
-            });
 
             this.deleteButton.connect("clicked", () => {
                 this.emit("delete-requested");
             });
 
-            this.windowEntry.connect("changed", () => {
-                this.inputValue = this.windowEntry.get_text().trim();
-                this.updateCheckButtonState();
+            this.connect("changed", () => {
                 this.emit("input-changed");
             });
 
-            this.connect("notify::expanded", () => {
-                this.updateButtonVisibility();
+            this.connect("apply", () => {
+                this.saveChanges();
+            });
+        }
+
+        focusInput() {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this.grab_focus();
+                return GLib.SOURCE_REMOVE;
             });
         }
 
         setWindowClass(windowClass: string) {
             this.windowClass = windowClass;
-            this.inputValue = windowClass;
             this.originalWindowClass = windowClass;
-            this.windowEntry.set_text(windowClass);
-            this.updateDisplay();
-            this.updateCheckButtonState();
+            this.set_text(windowClass);
         }
 
         getWindowClass(): string {
@@ -95,11 +76,11 @@ export const BlockedAppRow = GObject.registerClass(
         }
 
         getInputValue(): string {
-            return this.inputValue;
+            return this.get_text().trim();
         }
 
         getCurrentWindowClass(): string {
-            return this.inputValue.trim() || this.windowClass;
+            return this.getInputValue() || this.windowClass;
         }
 
         getOriginalWindowClass(): string {
@@ -107,47 +88,22 @@ export const BlockedAppRow = GObject.registerClass(
         }
 
         isEmpty(): boolean {
-            return this.inputValue.trim() === "";
-        }
-
-        closeExpanded() {
-            this.set_expanded(false);
+            return this.getInputValue() === "";
         }
 
         private saveChanges() {
             const oldValue = this.windowClass;
-            const newValue = this.inputValue.trim();
+            const newValue = this.getInputValue();
 
             if (newValue !== oldValue) {
                 this.originalWindowClass = oldValue;
                 this.windowClass = newValue;
-                this.updateDisplay();
                 this.emit("save-requested");
             }
 
-            this.closeExpanded();
-        }
-
-        private updateButtonVisibility() {
-            this.checkButton.visible = this.get_expanded();
-            if (this.get_expanded()) {
-                this.updateCheckButtonState();
-            }
-        }
-
-        updateCheckButtonState() {
-            this.checkButton.set_sensitive(this.inputValue.trim().length > 0);
-        }
-
-        private updateDisplay() {
-            if (this.windowClass) {
-                this.set_title(this.windowClass);
-                this.set_subtitle(
-                    `Expand this row to edit - ${this.windowClass}`,
-                );
-            } else {
-                this.set_title("Expand this row to enter window class");
-                this.set_subtitle("");
+            const root = this.get_root();
+            if (root) {
+                root.set_focus(null);
             }
         }
     },

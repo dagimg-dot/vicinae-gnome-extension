@@ -5,19 +5,6 @@
     <property name="title" translatable="true">General</property>
     <property name="icon_name">preferences-system-symbolic</property>
     <child>
-      <object class="AdwPreferencesGroup" id="blockedAppsGroup">
-        <property name="title" translatable="true">Blocked Applications</property>
-        <property name="description" translatable="true">Applications in this list will be blocked from clipboard access</property>
-        <property name="header-suffix">
-          <object class="GtkButton" id="addWindowButton">
-            <property name="label" translatable="true">Add window</property>
-            <property name="css-classes">suggested-action</property>
-            <property name="valign">center</property>
-          </object>
-        </property>
-      </object>
-    </child>
-    <child>
       <object class="AdwPreferencesGroup">
         <property name="title" translatable="true">Interface Settings</property>
         <child>
