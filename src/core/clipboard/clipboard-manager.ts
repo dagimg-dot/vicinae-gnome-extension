@@ -40,11 +40,9 @@ export class VicinaeClipboardManager {
     }
 
     disable() {
-        if (this.isMonitoring) {
-            this.selection?.disconnectObject(this);
-            this.isMonitoring = false;
-            logger.info("Clipboard monitoring disabled");
-        }
+        this.selection?.disconnectObject(this);
+        this.isMonitoring = false;
+        logger.info("Clipboard monitoring disabled");
     }
 
     setSettings(settings: Gio.Settings): void {
