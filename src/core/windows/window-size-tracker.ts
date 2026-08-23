@@ -11,14 +11,14 @@ import { logger } from "../../utils/logger.js";
  * and disconnect each tracked window's signal.
  */
 export class WindowSizeTracker {
-    private windowSizeSignalIds = new Map<number, number>();
+    private trackedWindows = new Set<number>();
 
     constructor(private onSizeChanged: (windowId: number) => void) {}
 
     connectToWindow(window: Meta.Window): void {
         const windowId = window.get_id();
 
-        if (this.windowSizeSignalIds.has(windowId)) {
+        if (this.trackedWindows.has(windowId)) {
             logger.debug(
                 `Window ${windowId} already has a size-changed connection, skipping`,
             );
@@ -26,17 +26,21 @@ export class WindowSizeTracker {
         }
 
         try {
-            const signalId = window.connect("size-changed", () => {
-                try {
-                    this.onSizeChanged(windowId);
-                } catch (error) {
-                    logger.debug(
-                        `Error in size-changed callback for window ${windowId}: ${error}`,
-                    );
-                }
-            });
+            window.connectObject(
+                "size-changed",
+                () => {
+                    try {
+                        this.onSizeChanged(windowId);
+                    } catch (error) {
+                        logger.debug(
+                            `Error in size-changed callback for window ${windowId}: ${error}`,
+                        );
+                    }
+                },
+                this,
+            );
 
-            this.windowSizeSignalIds.set(windowId, signalId);
+            this.trackedWindows.add(windowId);
         } catch (error) {
             logger.debug(
                 `Failed to connect size-changed signal for window ${windowId}: ${error}`,
@@ -59,27 +63,14 @@ export class WindowSizeTracker {
     }
 
     removeWindow(windowId: number): void {
-        this.windowSizeSignalIds.delete(windowId);
+        this.trackedWindows.delete(windowId);
     }
 
     disconnectAll(): void {
-        const windowMap = new Map<number, Meta.Window>();
         for (const actor of global.get_window_actors()) {
-            const mw = actor.meta_window;
-            if (mw) windowMap.set(mw.get_id(), mw);
+            actor.meta_window?.disconnectObject(this);
         }
 
-        for (const [windowId, sizeSignalId] of this.windowSizeSignalIds) {
-            try {
-                const mw = windowMap.get(windowId);
-                if (mw && sizeSignalId) mw.disconnect(sizeSignalId);
-            } catch (error) {
-                logger.debug(
-                    `Error disconnecting size signal for window ${windowId}: ${error}`,
-                );
-            }
-        }
-
-        this.windowSizeSignalIds.clear();
+        this.trackedWindows.clear();
     }
 }

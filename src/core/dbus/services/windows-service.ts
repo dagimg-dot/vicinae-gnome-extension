@@ -3,7 +3,6 @@ import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { logger } from "../../../utils/logger.js";
-import { SignalRegistry } from "../../../utils/signal-registry.js";
 import {
     getFocusedWindow,
     isTargetWindow,
@@ -14,16 +13,9 @@ import { WindowSizeTracker } from "../../windows/window-size-tracker.js";
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
     private dbusObject: Gio.DBusExportedObject | null = null;
-
-    // Signal connection IDs for cleanup
-    private windowOpenedSignalId: number = 0;
-    private windowFocusSignalId: number = 0;
-    private workspaceChangedSignalId: number = 0;
-    private windowDestroyHandlerId: number = 0;
     private focusIdleSourceId: number = 0;
-
+    private overviewIdleId: number = 0;
     private windowSizeTracker: WindowSizeTracker;
-    private signals = new SignalRegistry();
 
     // Track previous focused window for paste-to-active-app functionality
     private previousFocusedWindow: { id: number; wmClass: string } | null =
@@ -48,7 +40,7 @@ export class WindowsService {
     private setupWindowEventListeners(): void {
         logger.debug("WindowsService: Setting up GNOME window event listeners");
 
-        this.windowDestroyHandlerId = global.window_manager.connect(
+        global.window_manager.connectObject(
             "destroy",
             (_wm: unknown, actor: Meta.WindowActor) => {
                 try {
@@ -67,16 +59,12 @@ export class WindowsService {
                     logger.debug(`Error handling window destroy: ${error}`);
                 }
             },
+            this,
         );
-        this.signals.add(() => {
-            if (this.windowDestroyHandlerId) {
-                global.window_manager.disconnect(this.windowDestroyHandlerId);
-            }
-        });
 
-        this.windowOpenedSignalId = global.display.connect(
+        global.display.connectObject(
             "window-created",
-            (_display, window) => {
+            (_display: Meta.Display, window: Meta.Window) => {
                 try {
                     const windowInfo = this.getWindowInfo(window);
                     this.emitOpenWindow(
@@ -94,16 +82,6 @@ export class WindowsService {
                     );
                 }
             },
-        );
-        this.signals.add(() => {
-            if (this.windowOpenedSignalId) {
-                global.display.disconnect(this.windowOpenedSignalId);
-            }
-        });
-
-        this.windowSizeTracker.connectToExistingWindows();
-
-        this.windowFocusSignalId = global.display.connect(
             "notify::focus-window",
             () => {
                 try {
@@ -140,22 +118,12 @@ export class WindowsService {
                     logger.debug(`Error handling window focus event: ${error}`);
                 }
             },
+            this,
         );
 
-        this.signals.add(() => {
-            if (this.windowFocusSignalId) {
-                global.display.disconnect(this.windowFocusSignalId);
-            }
-        });
+        this.windowSizeTracker.connectToExistingWindows();
 
-        this.signals.add(() => {
-            if (this.focusIdleSourceId) {
-                GLib.source_remove(this.focusIdleSourceId);
-                this.focusIdleSourceId = 0;
-            }
-        });
-
-        this.workspaceChangedSignalId = global.workspace_manager?.connect(
+        global.workspace_manager?.connectObject(
             "notify::active-workspace",
             () => {
                 try {
@@ -172,15 +140,8 @@ export class WindowsService {
                     );
                 }
             },
+            this,
         );
-
-        this.signals.add(() => {
-            if (this.workspaceChangedSignalId && global.workspace_manager) {
-                global.workspace_manager.disconnect(
-                    this.workspaceChangedSignalId,
-                );
-            }
-        });
 
         logger.debug(
             "WindowsService: GNOME window event listeners set up successfully",
@@ -192,15 +153,25 @@ export class WindowsService {
 
         const wmClass = window.get_wm_class();
         if (!wmClass) {
-            const notifyId = window.connect("notify::wm-class", () => {
-                window.disconnect(notifyId);
-                this.hideOverviewWhenLauncherOpens(window);
-            });
+            window.connectObject(
+                "notify::wm-class",
+                () => {
+                    window.disconnectObject(this);
+                    this.hideOverviewWhenLauncherOpens(window);
+                },
+                this,
+            );
             return;
         }
 
         if (isTargetWindow(window, this.appClass)) {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            if (this.overviewIdleId) {
+                GLib.source_remove(this.overviewIdleId);
+                this.overviewIdleId = 0;
+            }
+
+            this.overviewIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this.overviewIdleId = 0;
                 Main.overview.hide();
                 logger.debug(
                     "WindowsService: Vicinae window opened, closing GNOME overview",
@@ -296,14 +267,18 @@ export class WindowsService {
 
     destroy(): void {
         logger.debug("WindowsService: Cleaning up window event listeners");
-        this.signals.disconnectAll();
+        if (this.focusIdleSourceId) {
+            GLib.source_remove(this.focusIdleSourceId);
+            this.focusIdleSourceId = 0;
+        }
+        if (this.overviewIdleId) {
+            GLib.source_remove(this.overviewIdleId);
+            this.overviewIdleId = 0;
+        }
+        global.window_manager.disconnectObject(this);
+        global.display.disconnectObject(this);
+        global.workspace_manager?.disconnectObject(this);
         this.windowSizeTracker.disconnectAll();
-
-        this.windowDestroyHandlerId = 0;
-        this.windowOpenedSignalId = 0;
-        this.windowFocusSignalId = 0;
-        this.workspaceChangedSignalId = 0;
-        this.focusIdleSourceId = 0;
 
         // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
         this.windowManager = null!;

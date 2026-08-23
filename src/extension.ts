@@ -4,12 +4,12 @@ import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
+import { Icons } from "./lib/icons.js";
 import {
     deinitializeLogger,
     initializeLogger,
     logger,
 } from "./utils/logger.js";
-import { SignalRegistry } from "./utils/signal-registry.js";
 
 export default class Vicinae extends Extension {
     private indicator: VicinaeIndicator | null = null;
@@ -17,7 +17,6 @@ export default class Vicinae extends Extension {
     private clipboardManager: VicinaeClipboardManager | null = null;
     private launcherManager: LauncherManager | null = null;
     private settings: Gio.Settings | null = null;
-    private signals = new SignalRegistry();
 
     async enable() {
         logger.info("Vicinae extension enabled");
@@ -49,7 +48,7 @@ export default class Vicinae extends Extension {
             this.dbusManager.getWindowsService(),
         );
 
-        const statusIndicatorId = this.settings.connect(
+        this.settings.connectObject(
             "changed::show-status-indicator",
             () => {
                 if (!this.settings) return;
@@ -59,10 +58,6 @@ export default class Vicinae extends Extension {
                     this.indicator,
                 );
             },
-        );
-        this.signals.add(() => this.settings?.disconnect(statusIndicatorId));
-
-        const launcherAutoCloseId = this.settings.connect(
             "changed::launcher-auto-close-focus-loss",
             () => {
                 if (
@@ -79,10 +74,6 @@ export default class Vicinae extends Extension {
                     this.launcherManager = mgr;
                 });
             },
-        );
-        this.signals.add(() => this.settings?.disconnect(launcherAutoCloseId));
-
-        const blockedAppsId = this.settings.connect(
             "changed::blocked-applications",
             () => {
                 if (this.clipboardManager && this.settings) {
@@ -92,10 +83,6 @@ export default class Vicinae extends Extension {
                     );
                 }
             },
-        );
-        this.signals.add(() => this.settings?.disconnect(blockedAppsId));
-
-        const enableMonitoringId = this.settings.connect(
             "changed::enable-clipboard-monitoring",
             () => {
                 if (this.clipboardManager && this.settings) {
@@ -108,8 +95,8 @@ export default class Vicinae extends Extension {
                     }
                 }
             },
+            this,
         );
-        this.signals.add(() => this.settings?.disconnect(enableMonitoringId));
 
         logger.info("Vicinae extension initialized successfully");
     }
@@ -117,7 +104,7 @@ export default class Vicinae extends Extension {
     disable() {
         logger.info("Vicinae extension disabled");
 
-        this.signals.disconnectAll();
+        this.settings?.disconnectObject(this);
         this.launcherManager?.disable();
         this.launcherManager = null;
 
@@ -134,6 +121,8 @@ export default class Vicinae extends Extension {
             deinitializeLogger(this.settings);
         }
         this.settings = null;
+
+        Icons.clear();
 
         logger.info("Vicinae extension cleaned up successfully");
     }

@@ -4,7 +4,6 @@ import Shell from "gi://Shell";
 import St from "gi://St";
 import { calculateClipboardMetadata } from "../../utils/clipboard-utils.js";
 import { logger } from "../../utils/logger.js";
-import { SignalRegistry } from "../../utils/signal-registry.js";
 import { BinaryDataStore } from "./binary-data-store.js";
 import { createHandlers } from "./handlers/index.js";
 import type { ClipboardContentHandler } from "./handlers/types.js";
@@ -18,7 +17,6 @@ export class VicinaeClipboardManager {
     private currentContent: string = "";
     private clipboard: St.Clipboard | null = null;
     private selection: Meta.Selection | null = null;
-    private signals = new SignalRegistry();
     private settings: Gio.Settings | null = null;
     private isMonitoring = false;
 
@@ -43,7 +41,7 @@ export class VicinaeClipboardManager {
 
     disable() {
         if (this.isMonitoring) {
-            this.signals.disconnectAll();
+            this.selection?.disconnectObject(this);
             this.isMonitoring = false;
             logger.info("Clipboard monitoring disabled");
         }
@@ -137,13 +135,13 @@ export class VicinaeClipboardManager {
     private setupClipboardMonitoring() {
         try {
             if (this.selection) {
-                const selectionId = this.selection.connect(
+                this.selection.connectObject(
                     "owner-changed",
                     (_: unknown, selectionType: Meta.SelectionType) => {
                         this.onSelectionOwnerChanged(_, selectionType);
                     },
+                    this,
                 );
-                this.signals.add(() => this.selection?.disconnect(selectionId));
 
                 this.queryClipboard();
 

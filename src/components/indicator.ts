@@ -61,10 +61,14 @@ export class VicinaeIndicator {
 
     private setupMenu() {
         const settingsItem = new PopupMenu.PopupMenuItem("Settings");
-        settingsItem.connect("activate", () => {
-            logger.debug("Opening Vicinae settings");
-            this.extension.openPreferences();
-        });
+        settingsItem.connectObject(
+            "activate",
+            () => {
+                logger.debug("Opening Vicinae settings");
+                this.extension.openPreferences();
+            },
+            this,
+        );
 
         const menu = this.indicator?.menu;
         if (menu && "addMenuItem" in menu) {
