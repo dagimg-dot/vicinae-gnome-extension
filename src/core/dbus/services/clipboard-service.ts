@@ -30,6 +30,18 @@ export class ClipboardService {
     setDBusObject(dbusObject: Gio.DBusExportedObject): void {
         this.dbusObject = dbusObject;
 
+        const listener = this.getOrCreateClipboardListener();
+        this.clipboardManager.onClipboardChange(listener);
+        this.isListening = true;
+
+        logger.info("📡 Binary-only D-Bus clipboard listener activated");
+    }
+
+    private getOrCreateClipboardListener(): (event: ClipboardEvent) => void {
+        if (this.clipboardListener) {
+            return this.clipboardListener;
+        }
+
         const signalPayloadContext = {
             getBinaryData: (marker: string) =>
                 this.clipboardManager.getBinaryData(marker),
@@ -103,10 +115,7 @@ export class ClipboardService {
             }
         };
 
-        this.clipboardManager.onClipboardChange(this.clipboardListener);
-        this.isListening = true;
-
-        logger.info("📡 Binary-only D-Bus clipboard listener activated");
+        return this.clipboardListener;
     }
 
     private emitBinarySignal(
@@ -142,17 +151,16 @@ export class ClipboardService {
     // Method to start listening to clipboard changes
     ListenToClipboardChanges(): void {
         try {
-            if (!this.isListening && this.clipboardListener) {
+            if (!this.isListening) {
                 logger.debug("D-Bus: Starting clipboard listener...");
-                this.clipboardManager.onClipboardChange(this.clipboardListener);
+                const listener = this.getOrCreateClipboardListener();
+                this.clipboardManager.onClipboardChange(listener);
                 this.isListening = true;
                 logger.info(
                     "📡 Binary D-Bus clipboard listener activated via method call",
                 );
-            } else if (this.isListening) {
-                logger.debug("D-Bus: Clipboard listener already active");
             } else {
-                logger.warn("D-Bus: No clipboard listener available");
+                logger.debug("D-Bus: Clipboard listener already active");
             }
         } catch (error) {
             logger.error("D-Bus: Error starting clipboard listener", error);
@@ -229,7 +237,6 @@ export class ClipboardService {
                 this.clipboardManager.removeClipboardListener(
                     this.clipboardListener,
                 );
-                this.clipboardListener = null;
                 this.isListening = false;
                 logger.info("🔕 Binary D-Bus clipboard listener deactivated");
             }
@@ -241,6 +248,7 @@ export class ClipboardService {
     // Cleanup method
     destroy(): void {
         this.StopListening();
+        this.clipboardListener = null;
         this.dbusObject = null;
         logger.info("ClipboardService destroyed");
     }
