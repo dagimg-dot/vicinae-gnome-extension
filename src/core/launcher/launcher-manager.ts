@@ -117,7 +117,6 @@ export class LauncherManager {
         windowsToClose.forEach((windowId) => {
             try {
                 if (this.isValidWindowId(windowId)) {
-                    this.windowManager.close(windowId);
                     this.config.onWindowClosed?.(windowId);
                     logger.debug(
                         `LauncherManager: Successfully closed window ${windowId}`,
